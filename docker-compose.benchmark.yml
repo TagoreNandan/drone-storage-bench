@@ -1,0 +1,262 @@
+networks:
+  benchmark_net:
+    name: benchmark_net
+    driver: bridge
+
+services:
+  # PostgreSQL Control Plane (Reference for SQL JOINs & Control Data)
+  postgres:
+    image: postgres:17.2-alpine
+    container_name: dsb-postgres
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-control_plane}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MySQL (Reference Relational Database)
+  mysql:
+    image: mysql:8.4
+    container_name: dsb-mysql
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysql_dev_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-control_plane}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # TimescaleDB
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: dsb-timescaledb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    ports:
+      - "${TIMESCALE_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${TIMESCALE_USER:-postgres}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-timescale_dev_password}
+      POSTGRES_DB: ${TIMESCALE_DB:-drone_telemetry}
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # QuestDB
+  questdb:
+    image: questdb/questdb:8.1.3
+    container_name: dsb-questdb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    ports:
+      - "${QUESTDB_PORT_HTTP:-9000}:9000"
+      - "${QUESTDB_PORT_PG:-8812}:8812"
+      - "${QUESTDB_PORT_ILP:-9009}:9009"
+    environment:
+      - QDB_TELEMETRY_ENABLED=false
+    volumes:
+      - questdb_data:/var/lib/questdb/db
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:9000/ || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ClickHouse
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8.3-alpine
+    container_name: dsb-clickhouse
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    ports:
+      - "${CLICKHOUSE_PORT_HTTP:-8123}:8123"
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse_dev_password}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-drone_telemetry}
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8123/ping || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # InfluxDB (Using v2 image configured for v3 / v2 compatibility API endpoints)
+  influxdb:
+    image: influxdb:2.7.11-alpine
+    container_name: dsb-influxdb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD:-influxdb_dev_password_long}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG:-drone_org}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_DATABASE:-drone_telemetry}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN:-influxdb_dev_token_very_long_string_here}
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD-SHELL", "influx ping || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB
+  mongodb:
+    image: mongo:8
+    container_name: dsb-mongodb
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4096M
+        reservations:
+          cpus: "0.5"
+          memory: 1024M
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: mongodb_dev_password
+    volumes:
+      - mongodb_data:/data/db
+      - ./results:/results
+    networks:
+      - benchmark_net
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.3
+    container_name: dsb-dynamodb
+    restart: unless-stopped
+
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 4096M
+        reservations:
+          cpus: "0.5"
+          memory: 1024M
+
+    command: -jar DynamoDBLocal.jar -sharedDb
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+      - ./results:/results
+
+    networks:
+      - benchmark_net
+
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --spider -q http://localhost:8000/shell/ || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  mysql_data:
+  timescale_data:
+  questdb_data:
+  clickhouse_data:
+  influxdb_data:
+  mongodb_data:
+  dynamodb_data:

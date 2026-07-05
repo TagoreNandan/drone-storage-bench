@@ -1,0 +1,100 @@
+[project]
+name = "drone-storage-bench"
+version = "0.1.0"
+description = "A benchmarking tool to evaluate timeseries databases (TimescaleDB, QuestDB, ClickHouse, InfluxDB 3) for drone telemetry storage under identical workloads."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [
+    { name = "Drone Storage Bench Team" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "structlog>=24.4.0",
+    "pyyaml>=6.0.2",
+    "click>=8.1.8",
+    "asyncpg>=0.30.0",
+    "clickhouse-connect>=0.8.15",
+    "influxdb-client>=1.49.0",
+    "psutil>=6.1.1",
+    "aiomysql>=0.3.2",
+    "motor>=3.7.1",
+    "pymongo>=4.17.0",
+    "aioboto3>=15.5.0",
+    "boto3>=1.40.61",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "ruff>=0.8.4",
+    "mypy>=1.14.0",
+    "types-pyyaml>=6.0.12.20240905",
+    "types-psutil>=7.2.2.20260518",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "PTH", # flake8-use-pathlib
+    "RUF", # Ruff-specific rules
+]
+ignore = ["ARG002"]
+
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+pretty = true
+ignore_missing_imports = false
+plugins = [
+    "pydantic.mypy"
+]
+
+
+[[tool.mypy.overrides]]
+module = ["asyncpg"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["aiomysql"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["psutil"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "aioboto3",
+    "boto3",
+    "boto3.*",
+]
+ignore_missing_imports = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/benchmark"]
+
+

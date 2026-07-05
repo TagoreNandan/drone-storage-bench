@@ -1,0 +1,97 @@
+# Drone Storage Bench - Declarative Benchmark Run Parameters
+# Design for repeatability, tracking, and comparative execution profiles.
+
+# Metadata & Reproducibility Settings
+metadata:
+  name: "standard-drone-telemetry-run"
+  description: "Standard high-frequency telemetry storage database benchmark"
+  version: "1.0.0"
+  # Deterministic random seed ensures data generator and query patterns are repeatable
+  random_seed: 42
+
+# General execution configuration
+global:
+  duration_seconds: 300
+  concurrency_limit: 8
+  cooldown_seconds: 15
+  batch_size: 1000
+  # Simulated update frequency in Hertz per drone
+  telemetry_frequency_hz: 50.0
+
+# Database target control configuration
+targets:
+  postgres:
+    enabled: true
+    connection_override: null
+
+  mysql:
+    enabled: true
+    connection_override: null
+
+  timescaledb:
+    enabled: true
+    connection_override: null
+
+  questdb:
+    enabled: true
+    connection_override: null
+
+  clickhouse:
+    enabled: true
+    connection_override: null
+
+  influxdb:
+    enabled: true
+    connection_override: null
+
+  mongodb:
+    enabled: true
+    connection_override: null
+
+  dynamodb:
+    enabled: true
+    connection_override: null
+
+# Workload execution stages
+workloads:
+  - name: "write_heavy_ingestion"
+    type: "ingestion"
+    enabled: true
+    params:
+      simulated_drones: 100
+      metrics_per_drone: 30
+      variance_percent: 5.0
+
+  - name: "mixed_telemetry_load"
+    type: "mixed"
+    enabled: true
+    params:
+      read_write_ratio: 0.15 # 15% reads, 85% writes
+      simulated_drones: 100
+      query_patterns:
+        - "latest_position_per_drone"
+        - "spatial_bounding_box_filter"
+        - "rolling_avg_battery_consumption_5m"
+
+  - name: "analytical_aggregation_queries"
+    type: "query"
+    enabled: true
+    params:
+      iterations: 1000
+      query_patterns:
+        - "altitude_anomaly_detection"
+        - "battery_drain_rate_by_drone_model"
+        - "join_control_plane_metadata" # Query utilizing postgres control data
+
+        
+
+# Configurable scoring weights for final rankings
+scoring_weights:
+  sustained_write_throughput: 0.20
+  burst_latency: 0.15
+  time_range_queries: 0.15
+  aggregation_queries: 0.15
+  historical_replay: 0.15
+  compression: 0.10
+  join_evaluation: 0.10
+
