@@ -15,6 +15,7 @@ class PostgresSettings(BaseModel):
     password: str = "postgres_dev_password"
     database: str = "control_plane"
 
+
 class MySQLSettings(BaseModel):
     """MySQL connection details."""
 
@@ -24,6 +25,7 @@ class MySQLSettings(BaseModel):
     password: str = "mysql_dev_password"
     database: str = "control_plane"
 
+
 class MongoDBSettings(BaseModel):
     """MongoDB connection details."""
 
@@ -32,6 +34,7 @@ class MongoDBSettings(BaseModel):
     user: str = "root"
     password: str = "mongodb_dev_password"
     database: str = "drone_telemetry"
+
 
 class DynamoDBSettings(BaseModel):
     """DynamoDB Local connection details."""

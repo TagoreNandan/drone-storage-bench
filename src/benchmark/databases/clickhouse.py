@@ -38,15 +38,15 @@ class ClickHouseClient(BaseDatabaseClient):
             username=self.connection_config.user,
             password=self.connection_config.password,
             database=self.connection_config.database,
-    )
+        )
 
     async def disconnect(self) -> None:
-            """Gracefully closes the ClickHouse client."""
-            logger.info("Disconnecting from ClickHouse")
+        """Gracefully closes the ClickHouse client."""
+        logger.info("Disconnecting from ClickHouse")
 
-            if self.client is not None:
-                self.client.close()
-                self.client = None
+        if self.client is not None:
+            self.client.close()
+            self.client = None
 
     async def is_healthy(self) -> bool:
         """Checks ClickHouse connectivity."""
@@ -73,7 +73,7 @@ class ClickHouseClient(BaseDatabaseClient):
         logger.info("Initializing ClickHouse schema")
 
         self.client.command(
-        """
+            """
         CREATE TABLE IF NOT EXISTS telemetry
         (
             timestamp DateTime64(3),
@@ -102,7 +102,10 @@ class ClickHouseClient(BaseDatabaseClient):
         logger.info("Cleaning ClickHouse benchmark data")
         self.client.command("TRUNCATE TABLE telemetry")
 
-    async def write_telemetry_batch(self,batch: list[TelemetryRecord],) -> dict[str, Any]:
+    async def write_telemetry_batch(
+        self,
+        batch: list[TelemetryRecord],
+    ) -> dict[str, Any]:
         """Writes telemetry records using ClickHouse block inserts."""
 
         if self.client is None:
@@ -153,7 +156,11 @@ class ClickHouseClient(BaseDatabaseClient):
             "error_count": 0,
         }
 
-    async def execute_query(self,query_name: str,params: dict[str, Any],) -> dict[str, Any]:
+    async def execute_query(
+        self,
+        query_name: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """Executes benchmark queries against ClickHouse."""
 
         if self.client is None:
@@ -184,7 +191,7 @@ class ClickHouseClient(BaseDatabaseClient):
                     "start": params["start_time"],
                     "end": params["end_time"],
                 },
-        )
+            )
         row_count = len(result.result_rows)
 
         latency = time.perf_counter() - start
@@ -192,7 +199,7 @@ class ClickHouseClient(BaseDatabaseClient):
         return {
             "latency_seconds": latency,
             "row_count": row_count,
-    }
+        }
 
     async def get_storage_size_bytes(self) -> int:
         """Returns storage used by the telemetry table."""

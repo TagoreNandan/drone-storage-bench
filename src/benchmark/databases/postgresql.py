@@ -76,7 +76,8 @@ class PostgreSQLClient(BaseDatabaseClient):
                 battery_percentage DOUBLE PRECISION NOT NULL
             );
             """
-        )
+            )
+
     async def cleanup_data(self) -> None:
         """Removes all benchmark data."""
         if self.pool is None:

@@ -67,7 +67,10 @@ class ScoringEngine:
     evaluations, computes overall weighted rankings, and outputs strongly typed reports.
     """
 
-    def __init__(self,weights: ScoringWeightsConfig | dict[str, float] | None = None,) -> None:
+    def __init__(
+        self,
+        weights: ScoringWeightsConfig | dict[str, float] | None = None,
+    ) -> None:
         """Initialize scoring criteria and coefficients."""
         if weights is None:
             self.weights = {
@@ -154,7 +157,7 @@ class ScoringEngine:
                     val = raw_values[db]
                     # Range checks to prevent division by zero
                     if max_val == min_val:
-                        norm_score = 50.0
+                        norm_score = 100.0
                     else:
                         if higher_is_better:
                             norm_score = ((val - min_val) / (max_val - min_val)) * 100.0

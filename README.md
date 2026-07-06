@@ -253,7 +253,29 @@ The JOIN evaluation workload (`JoinEvaluationWorkload`) measures the cost of cor
 - `merge_duration_ms`: Duration of correlation operations spent at the application layer.
 - `join_strategy`: Numerical representation of the strategy used (`1.0` for Native, `2.0` for App-layer merge).
 
+### Benchmark Scoring Engine
+
+The scoring engine (`ScoringEngine`) computes comparative, multi-dimensional scorecards and overall weighted rankings for all database targets based on workload metrics.
+
+#### Key Mechanics:
+1. **Scenario Weighting**: Loads weight configurations dynamically from `benchmark.yaml`. Active scenario weights are normalized to sum to `1.0` to support custom subsets.
+2. **Metric Normalization**: Normalizes raw values to a `[0.0, 100.0]` scale to allow cross-unit comparison:
+   - *Higher-is-better* (throughput, compression ratio): `score = (value - min_val) / (max_val - min_val) * 100.0`
+   - *Lower-is-better* (latency, physical size): `score = (max_val - value) / (max_val - min_val) * 100.0`
+3. **Robust Tie Resolution**: Ranks databases using standard competition rules (e.g. `1, 1, 3`). On score ties, secondary alphabetical sort guarantees deterministic ordering.
+4. **Failure Resiliency**: Assigns `0.0` to missing or unsuccessful scenario executions, allowing the rest of the suite scoring to proceed.
+
+#### Configured Default Weights:
+- `sustained_write_throughput`: 0.20
+- `burst_latency`: 0.15
+- `time_range_queries`: 0.15
+- `aggregation_queries`: 0.15
+- `historical_replay`: 0.15
+- `compression`: 0.10
+- `join_evaluation`: 0.10
+
 ---
+
 
 
 

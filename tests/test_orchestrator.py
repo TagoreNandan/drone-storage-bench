@@ -111,6 +111,7 @@ def test_orchestrator_execution_flow(
     with json_files[0].open() as f:
         data = json.load(f)
     assert "results" in data
+    assert "score_report" in data
     assert len(data["results"]) == len(results)
 
     # Check Markdown summaries compilation
@@ -119,6 +120,7 @@ def test_orchestrator_execution_flow(
     md_content = md_files[0].read_text()
     assert "# Drone Storage Bench" in md_content
     assert "MockHealthyClient" in md_content
+    assert "Performance Rankings and Scores" in md_content
 
 
 class MockCrashingWorkloadClient(MockHealthyClient):

@@ -80,9 +80,7 @@ class MongoDBClient(BaseDatabaseClient):
 
         logger.info("Creating MongoDB indexes")
 
-        await collection.create_index(
-            [("timestamp", ASCENDING)]
-        )
+        await collection.create_index([("timestamp", ASCENDING)])
 
         await self.collection.create_index(
             [
@@ -196,4 +194,3 @@ class MongoDBClient(BaseDatabaseClient):
         )
 
         return int(stats.get("storageSize", 0))
-

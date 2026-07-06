@@ -64,6 +64,14 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                     s_type = ScenarioType.BURST_WRITE_LATENCY
                 elif wl.type == "query":
                     s_type = ScenarioType.TIME_RANGE_QUERIES
+                elif wl.type == "aggregation":
+                    s_type = ScenarioType.AGGREGATION_QUERIES
+                elif wl.type == "replay":
+                    s_type = ScenarioType.HISTORICAL_REPLAY
+                elif wl.type == "compression":
+                    s_type = ScenarioType.COMPRESSION_EVALUATION
+                elif wl.type == "join":
+                    s_type = ScenarioType.JOIN_EVALUATION
                 else:
                     s_type = ScenarioType.WRITE_THROUGHPUT
 
@@ -291,7 +299,18 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                         "Failed to disconnect database client", target=target, error=str(e)
                     )
 
-        # 5. Export structured reports
+        # 5. Compute performance rankings and scores
+        from benchmark.scoring.engine import ScoringEngine
+
+        scoring_engine = ScoringEngine(weights=self.run_config.scoring_weights)
+        try:
+            score_report = scoring_engine.score(self.suite_results, suite)
+            logger.info("Database scoring completed successfully")
+        except Exception as e:
+            logger.exception("Failed to compute scoring rankings", error=str(e))
+            score_report = None
+
+        # 6. Export structured reports
         results_dir_path = Path(self.settings.results_dir)
         report_gen = ReportGenerator(results_dir_path)
 
@@ -299,8 +318,12 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
         json_filename = f"{suite.name}_{timestamp_str}.json"
         md_filename = f"{suite.name}_{timestamp_str}.md"
 
-        json_path = report_gen.generate_json_results(self.suite_results, json_filename)
-        md_path = report_gen.generate_markdown_summary(self.suite_results, md_filename)
+        json_path = report_gen.generate_json_results(
+            self.suite_results, json_filename, score_report=score_report
+        )
+        md_path = report_gen.generate_markdown_summary(
+            self.suite_results, md_filename, score_report=score_report
+        )
 
         logger.info(
             "Structured reports written",
@@ -311,6 +334,7 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
         return {
             "suite_name": suite.name,
             "results": [res.model_dump(mode="json") for res in self.suite_results],
+            "score_report": score_report,
         }
 
     async def run(self, client: BaseDatabaseClient, workload: BaseWorkload) -> BenchmarkResult:

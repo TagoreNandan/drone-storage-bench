@@ -22,9 +22,7 @@ class ResourceMonitor:
 
         while self._running:
             self._cpu_samples.append(process.cpu_percent())
-            self._memory_samples.append(
-                process.memory_info().rss / (1024 * 1024)
-            )
+            self._memory_samples.append(process.memory_info().rss / (1024 * 1024))
             time.sleep(self.interval)
 
     def start(self) -> None:
@@ -48,23 +46,13 @@ class ResourceMonitor:
 
         return {
             "avg_cpu_percent": (
-                sum(self._cpu_samples) / len(self._cpu_samples)
-                if self._cpu_samples
-                else 0.0
+                sum(self._cpu_samples) / len(self._cpu_samples) if self._cpu_samples else 0.0
             ),
-            "peak_cpu_percent": (
-                max(self._cpu_samples)
-                if self._cpu_samples
-                else 0.0
-            ),
+            "peak_cpu_percent": (max(self._cpu_samples) if self._cpu_samples else 0.0),
             "avg_memory_mb": (
                 sum(self._memory_samples) / len(self._memory_samples)
                 if self._memory_samples
                 else 0.0
             ),
-            "peak_memory_mb": (
-                max(self._memory_samples)
-                if self._memory_samples
-                else 0.0
-            ),
+            "peak_memory_mb": (max(self._memory_samples) if self._memory_samples else 0.0),
         }

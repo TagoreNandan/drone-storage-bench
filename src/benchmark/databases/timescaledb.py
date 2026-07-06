@@ -110,7 +110,10 @@ class TimescaleDBClient(BaseDatabaseClient):
         async with self.pool.acquire() as conn:
             await conn.execute("TRUNCATE TABLE telemetry;")
 
-    async def write_telemetry_batch(self,batch: list[TelemetryRecord],) -> dict[str, Any]:
+    async def write_telemetry_batch(
+        self,
+        batch: list[TelemetryRecord],
+    ) -> dict[str, Any]:
         """Writes a batch of telemetry records into TimescaleDB."""
 
         if self.pool is None:
@@ -139,7 +142,7 @@ class TimescaleDBClient(BaseDatabaseClient):
 
         async with self.pool.acquire() as conn:
             await conn.executemany(
-            """
+                """
             INSERT INTO telemetry (
                 timestamp,
                 vehicle_id,
@@ -157,8 +160,8 @@ class TimescaleDBClient(BaseDatabaseClient):
                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
             )
             """,
-            rows,
-        )
+                rows,
+            )
 
         latency = time.perf_counter() - start
 
@@ -168,7 +171,11 @@ class TimescaleDBClient(BaseDatabaseClient):
             "error_count": 0,
         }
 
-    async def execute_query(self,query_name: str,params: dict[str, Any],) -> dict[str, Any]:
+    async def execute_query(
+        self,
+        query_name: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """Executes benchmark queries."""
 
         if self.pool is None:

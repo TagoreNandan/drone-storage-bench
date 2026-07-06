@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import Any
 
 import aioboto3
@@ -9,6 +10,9 @@ from benchmark.core.database import BaseDatabaseClient
 from benchmark.core.specification import TelemetryRecord
 
 logger = structlog.get_logger()
+def d(value: float) -> Decimal:
+    """Convert float to DynamoDB Decimal safely."""
+    return Decimal(str(value))
 
 
 class DynamoDBClient(BaseDatabaseClient):
@@ -114,16 +118,27 @@ class DynamoDBClient(BaseDatabaseClient):
         if self.table is None:
             raise RuntimeError("Table not initialized.")
 
-        scan = await self.table.scan()
+        exclusive_start_key: dict[str, Any] | None = None
+        while True:
+            scan_kwargs: dict[str, Any] = {}
+            if exclusive_start_key is not None:
+                scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
 
-        with self.table.batch_writer() as batch:
-            for item in scan.get("Items", []):
-                batch.delete_item(
-                    Key={
-                        "vehicle_id": item["vehicle_id"],
-                        "timestamp": item["timestamp"],
-                    }
-                )
+            response = await self.table.scan(**scan_kwargs)
+            items = response.get("Items", [])
+            if items:
+                async with self.table.batch_writer() as batch:
+                    for item in items:
+                        await batch.delete_item(
+                            Key={
+                                "vehicle_id": item["vehicle_id"],
+                                "timestamp": item["timestamp"],
+                            }
+                        )
+
+            exclusive_start_key = response.get("LastEvaluatedKey")
+            if not exclusive_start_key:
+                break
 
     async def write_telemetry_batch(
         self,
@@ -138,21 +153,21 @@ class DynamoDBClient(BaseDatabaseClient):
 
         start = time.perf_counter()
 
-        with self.table.batch_writer() as writer:
+        async with self.table.batch_writer() as writer:
             for record in batch:
-                writer.put_item(
+                await writer.put_item(
                     Item={
                         "vehicle_id": record.vehicle_id,
                         "timestamp": record.timestamp.isoformat(),
                         "mission_id": record.mission_id,
-                        "latitude": record.latitude,
-                        "longitude": record.longitude,
-                        "altitude": record.altitude,
-                        "roll": record.roll,
-                        "pitch": record.pitch,
-                        "yaw": record.yaw,
-                        "velocity": record.velocity,
-                        "battery_percentage": record.battery_percentage,
+                        "latitude": d(record.latitude),
+                        "longitude": d(record.longitude),
+                        "altitude": d(record.altitude),
+                        "roll": d(record.roll),
+                        "pitch": d(record.pitch),
+                        "yaw": d(record.yaw),
+                        "velocity": d(record.velocity),
+                        "battery_percentage": d(record.battery_percentage),
                     }
                 )
 
@@ -192,10 +207,18 @@ class DynamoDBClient(BaseDatabaseClient):
             )
             row_count = len(response["Items"])
 
-        else:
-            raise ValueError(
-                f"Unsupported query: {query_name}"
+        elif query_name == "time_range_query":
+            vehicle_id = params["vehicle_id"]
+            start_iso = params["start_time"].isoformat()
+            end_iso = params["end_time"].isoformat()
+            response = await self.table.query(
+                KeyConditionExpression=Key("vehicle_id").eq(vehicle_id)
+                & Key("timestamp").between(start_iso, end_iso)
             )
+            row_count = len(response["Items"])
+
+        else:
+            raise ValueError(f"Unsupported query: {query_name}")
 
         latency = time.perf_counter() - start
 

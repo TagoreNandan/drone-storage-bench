@@ -45,11 +45,7 @@ class MetricsCollector:
         databases = {record["database"] for record in self._records}
 
         for database in databases:
-            records = [
-                record
-                for record in self._records
-                if record["database"] == database
-            ]
+            records = [record for record in self._records if record["database"] == database]
 
             durations = [record["duration_sec"] for record in records]
             successes = sum(record["success"] for record in records)
@@ -67,36 +63,16 @@ class MetricsCollector:
 
             total_time = sum(durations)
 
-            throughput = (
-                len(records) / total_time
-                if total_time > 0
-                else 0.0
-            )
+            throughput = len(records) / total_time if total_time > 0 else 0.0
 
             summary["databases"][database] = {
                 "operations": len(records),
                 "successful_operations": successes,
                 "failed_operations": len(records) - successes,
-                "success_rate": (
-                    successes / len(records)
-                    if records
-                    else 0.0
-                ),
-                "average_latency_seconds": (
-                    mean(durations)
-                    if durations
-                    else 0.0
-                ),
-                "min_latency_seconds": (
-                    min(durations)
-                    if durations
-                    else 0.0
-                ),
-                "max_latency_seconds": (
-                    max(durations)
-                    if durations
-                    else 0.0
-                ),
+                "success_rate": (successes / len(records) if records else 0.0),
+                "average_latency_seconds": (mean(durations) if durations else 0.0),
+                "min_latency_seconds": (min(durations) if durations else 0.0),
+                "max_latency_seconds": (max(durations) if durations else 0.0),
                 "p50_latency_seconds": p50,
                 "p95_latency_seconds": p95,
                 "p99_latency_seconds": p99,

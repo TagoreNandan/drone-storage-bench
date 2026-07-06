@@ -93,7 +93,10 @@ class QuestDBClient(BaseDatabaseClient):
         async with self.pool.acquire() as conn:
             await conn.execute("TRUNCATE TABLE telemetry;")
 
-    async def write_telemetry_batch(self,batch: list[TelemetryRecord],) -> dict[str, Any]:
+    async def write_telemetry_batch(
+        self,
+        batch: list[TelemetryRecord],
+    ) -> dict[str, Any]:
         """Writes telemetry batches to QuestDB using PGWire."""
 
         if self.pool is None:
@@ -151,7 +154,11 @@ class QuestDBClient(BaseDatabaseClient):
             "error_count": 0,
         }
 
-    async def execute_query(self,query_name: str,params: dict[str, Any],) -> dict[str, Any]:
+    async def execute_query(
+        self,
+        query_name: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         """Executes benchmark queries against QuestDB."""
 
         if self.pool is None:
@@ -198,9 +205,6 @@ class QuestDBClient(BaseDatabaseClient):
 
     async def get_storage_size_bytes(self) -> int:
         """Returns storage consumed by QuestDB benchmark tables."""
-        logger.warning(
-            "QuestDB storage size retrieval is not yet implemented."
-        )
+        logger.warning("QuestDB storage size retrieval is not yet implemented.")
 
         return 0
-
