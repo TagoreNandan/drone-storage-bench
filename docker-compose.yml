@@ -251,7 +251,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dsb-runner
-    command: [ "--duration", "5" ]
     depends_on:
       postgres:
         condition: service_healthy
