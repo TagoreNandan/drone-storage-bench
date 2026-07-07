@@ -260,7 +260,10 @@ class InfluxDBClient(BaseDatabaseClient):
             row_count = await self._run_flux_query_val(flux_query)
             start_merge = time.perf_counter()
             vehicles_dict = {
-                f"drone_{i:04d}": {"model": f"Model-{i%5}", "manufacturer": f"Manufacturer-{i%3}"}
+                f"drone_{i:04d}": {
+                    "model": f"Model-{i % 5}",
+                    "manufacturer": f"Manufacturer-{i % 3}",
+                }
                 for i in range(200)
             }
             # Simulating lookup/merge

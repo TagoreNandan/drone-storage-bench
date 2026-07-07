@@ -109,7 +109,7 @@ class MySQLClient(BaseDatabaseClient):
                 count = int(result[0])
                 if count == 0:
                     vehicles_data = [
-                        (f"drone_{i:04d}", f"Model-{i%5}", f"Manufacturer-{i%3}")
+                        (f"drone_{i:04d}", f"Model-{i % 5}", f"Manufacturer-{i % 3}")
                         for i in range(200)
                     ]
                     await cur.executemany(

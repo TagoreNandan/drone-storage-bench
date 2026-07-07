@@ -78,16 +78,24 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
             workload_profile = None
             query_profile = None
 
-            is_write_heavy = s_type in (
-                ScenarioType.WRITE_THROUGHPUT,
-                ScenarioType.BURST_WRITE_LATENCY,
-                ScenarioType.HISTORICAL_REPLAY,
-            ) or wl.type == "mixed"
-            is_read_heavy = s_type in (
-                ScenarioType.TIME_RANGE_QUERIES,
-                ScenarioType.AGGREGATION_QUERIES,
-                ScenarioType.JOIN_EVALUATION,
-            ) or wl.type == "mixed"
+            is_write_heavy = (
+                s_type
+                in (
+                    ScenarioType.WRITE_THROUGHPUT,
+                    ScenarioType.BURST_WRITE_LATENCY,
+                    ScenarioType.HISTORICAL_REPLAY,
+                )
+                or wl.type == "mixed"
+            )
+            is_read_heavy = (
+                s_type
+                in (
+                    ScenarioType.TIME_RANGE_QUERIES,
+                    ScenarioType.AGGREGATION_QUERIES,
+                    ScenarioType.JOIN_EVALUATION,
+                )
+                or wl.type == "mixed"
+            )
 
             if is_write_heavy:
                 workload_profile = WorkloadProfile(
@@ -121,9 +129,21 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
             # Deduce metrics to record
             metrics = []
             if workload_profile:
-                metrics.extend([MetricType.WRITE_THROUGHPUT, MetricType.WRITE_LATENCY_P95, MetricType.AVERAGE_BATCH_LATENCY_MS])
+                metrics.extend(
+                    [
+                        MetricType.WRITE_THROUGHPUT,
+                        MetricType.WRITE_LATENCY_P95,
+                        MetricType.AVERAGE_BATCH_LATENCY_MS,
+                    ]
+                )
             if query_profile:
-                metrics.extend([MetricType.READ_THROUGHPUT, MetricType.READ_LATENCY_P95, MetricType.AVERAGE_LATENCY_MS])
+                metrics.extend(
+                    [
+                        MetricType.READ_THROUGHPUT,
+                        MetricType.READ_LATENCY_P95,
+                        MetricType.AVERAGE_LATENCY_MS,
+                    ]
+                )
             if s_type == ScenarioType.JOIN_EVALUATION:
                 metrics.append(MetricType.JOIN_LATENCY_MS)
             if s_type == ScenarioType.COMPRESSION_EVALUATION:
@@ -220,11 +240,17 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                     try:
                         # Clean up previous data if this scenario writes data to isolate runs
                         if scenario.concurrent_writers > 0:
-                            logger.info("Cleaning up previous data for write scenario", target=target)
+                            logger.info(
+                                "Cleaning up previous data for write scenario", target=target
+                            )
                             try:
                                 await client.cleanup_data()
                             except Exception as e:
-                                logger.error("Failed to clean data before write scenario", target=target, error=str(e))
+                                logger.error(
+                                    "Failed to clean data before write scenario",
+                                    target=target,
+                                    error=str(e),
+                                )
 
                         # Initialize schema
                         await client.setup_schema()
