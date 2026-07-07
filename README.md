@@ -2,16 +2,16 @@
 
 # 🚁 Drone Storage Bench
 
-### Production-Grade Database Benchmarking Framework for High-Frequency Drone Telemetry Workloads
+### A Reproducible Database Benchmarking Framework for High-Frequency Drone Telemetry Workloads
 
 [![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](https://www.docker.com/)
-[![Tests](https://img.shields.io/badge/Tests-55%20Passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-58%20Passing-success.svg)]()
 [![Ruff](https://img.shields.io/badge/Ruff-Passing-success.svg)]()
 [![Mypy](https://img.shields.io/badge/Mypy-Strict-success.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
-Compare SQL, NoSQL, and Time-Series databases under identical drone telemetry workloads using a unified benchmarking framework.
+Evaluate SQL, NoSQL, OLAP, and Time-Series databases under identical UAV telemetry workloads using a unified benchmarking framework.
 
 </div>
 
@@ -19,27 +19,38 @@ Compare SQL, NoSQL, and Time-Series databases under identical drone telemetry wo
 
 # Overview
 
-Drone Storage Bench is a production-quality benchmarking framework designed to evaluate database technologies under realistic, high-frequency drone telemetry workloads.
+Drone Storage Bench is a reproducible benchmarking framework designed to compare multiple database technologies under realistic high-frequency drone telemetry workloads.
 
-Modern UAV systems continuously generate large volumes of telemetry data including GPS coordinates, altitude, orientation, velocity, battery statistics, and mission metadata. Selecting an appropriate database for storing and querying this information requires objective performance evaluation rather than assumptions.
+Modern UAV systems continuously generate GPS coordinates, altitude, orientation, velocity, battery statistics, and mission metadata at very high frequencies. Choosing the appropriate storage engine requires objective evaluation rather than assumptions.
 
-This framework executes identical benchmark scenarios across multiple database systems using a common abstraction layer, ensuring fair comparison of ingestion performance, query latency, analytical workloads, storage efficiency, and overall database behavior.
+This framework executes identical workloads across multiple database systems through a common abstraction layer, ensuring fair comparisons of:
+
+- Sustained ingestion throughput
+- Mixed read/write performance
+- Analytical query execution
+- Storage efficiency
+- Resource utilization
+- Overall database behavior
+
+The project was designed with reproducibility, modularity, and automation as primary goals.
 
 ---
 
 # Key Features
 
-- Modular adapter-based architecture
-- Unified database interface
-- Asynchronous benchmark execution
-- Dockerized deployment
-- Configurable benchmark scenarios
-- Automated scoring engine
+- Unified database abstraction layer
+- Modular adapter architecture
+- Fully asynchronous benchmark execution
+- Declarative benchmark configuration
+- Docker-based deployment
+- Automatic scoring engine
+- Deterministic telemetry generation
 - JSON report generation
 - Markdown report generation
-- Automatic visualization support
+- Interactive HTML reports
+- Automatic performance charts
 - Strict static typing (Mypy)
-- Ruff linting
+- Ruff formatting & linting
 - Comprehensive unit testing
 - Production-ready project structure
 
@@ -47,205 +58,150 @@ This framework executes identical benchmark scenarios across multiple database s
 
 # Supported Databases
 
-| Database | Type | Status |
-|-----------|------|--------|
+| Database | Category | Status |
+|-----------|----------|--------|
 | PostgreSQL | Relational | ✅ |
 | MySQL | Relational | ✅ |
-| TimescaleDB | Time-Series Extension | ✅ |
+| TimescaleDB | Time-Series | ✅ |
 | QuestDB | Time-Series | ✅ |
-| ClickHouse | Analytical OLAP | ✅ |
+| ClickHouse | OLAP | ✅ |
 | InfluxDB | Time-Series | ✅ |
 | MongoDB | Document | ✅ |
-| DynamoDB Local | NoSQL Key-Value | ✅ |
+| DynamoDB Local | Key-Value | ✅ |
 
 ---
 
-# Architecture
+# High-Level Architecture
 
-```
-                 benchmark.yaml
-                        │
-                        ▼
-              Configuration Loader
-                        │
-                        ▼
-             Benchmark Orchestrator
-                        │
-      ┌─────────────────┼──────────────────┐
-      ▼                 ▼                  ▼
- Workloads        Database Adapter     Resource Monitor
-      │                 │                  │
-      └─────────────────┼──────────────────┘
-                        ▼
-                Metrics Collection
-                        │
-                        ▼
-                 Scoring Engine
-                        │
-                        ▼
-        JSON Reports • Markdown Reports • Charts
+```text
+                     benchmark.yaml
+                            │
+                            ▼
+                Configuration Loader
+                            │
+                            ▼
+                Benchmark Orchestrator
+                            │
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+   Workload Engine    Database Adapters   Resource Monitor
+        │                   │                   │
+        └───────────────────┼───────────────────┘
+                            ▼
+                  Metrics Collection
+                            │
+                            ▼
+                    Scoring Engine
+                            │
+                            ▼
+      JSON Reports • Markdown • HTML • Charts
 ```
 
 ---
 
-# Project Structure
+# Repository Structure
 
-```
-src/
-└── benchmark/
-    ├── config/
-    ├── core/
-    ├── databases/
-    ├── workloads/
-    ├── metrics/
-    ├── reporting/
-    ├── scoring/
-    └── runners/
+```text
+drone-storage-bench/
 
-tests/
-
-results/
-├── raw/
-├── reports/
-└── charts/
-
-docker-compose.benchmark.yml
-benchmark.yaml
-pyproject.toml
+├── src/
+│   └── benchmark/
+│       ├── config/
+│       ├── core/
+│       ├── databases/
+│       ├── generators/
+│       ├── metrics/
+│       ├── reporting/
+│       ├── runners/
+│       ├── scoring/
+│       ├── utils/
+│       └── workloads/
+│
+├── tests/
+│
+├── docker/
+│
+├── docs/
+│
+├── results/
+│   ├── raw/
+│   ├── reports/
+│   └── charts/
+│
+├── Dockerfile
+├── docker-compose.yml
+├── benchmark.yaml
+├── pyproject.toml
+└── README.md
 ```
 
 ---
 
 # Benchmark Workloads
 
-## Sustained Write Throughput
+The benchmark framework currently evaluates databases using four primary workload categories.
 
-Evaluates continuous telemetry ingestion performance under high write loads.
+## 1. Write Heavy Ingestion
 
-Metrics
+Simulates continuous ingestion of high-frequency drone telemetry.
+
+Measured metrics:
 
 - Throughput
-- Average latency
+- Average write latency
 - Peak latency
+- Failed batches
 
 ---
 
-## Burst Load
+## 2. Mixed Telemetry Load
 
-Measures database performance during sudden spikes in incoming telemetry.
+Simulates concurrent reads while telemetry is continuously written.
 
-Metrics
+Measured metrics:
 
-- Burst latency
-- Throughput stability
+- Read latency
+- Write latency
+- Throughput
+- Concurrent stability
 
 ---
 
-## Time Range Queries
+## 3. Analytical Aggregation Queries
 
-Simulates querying telemetry over configurable time intervals.
+Executes analytical SQL/NoSQL aggregation workloads over stored telemetry.
 
-Metrics
+Examples include:
+
+- Average battery consumption
+- Altitude statistics
+- Vehicle grouping
+- Mission aggregation
+
+Measured metrics:
 
 - Query latency
-- Throughput
+- Rows processed
+- Query throughput
 
 ---
 
-## Aggregation Queries
+## 4. Storage Compression Evaluation
 
-Evaluates analytical operations such as averages, counts, and grouped statistics.
+Measures storage efficiency after telemetry ingestion.
 
-Metrics
+Measured metrics:
 
-- Aggregation latency
-
----
-
-## Historical Replay
-
-Measures sequential replay performance for historical telemetry analysis.
-
-Metrics
-
-- Replay throughput
-
----
-
-## Compression Evaluation
-
-Evaluates physical storage efficiency.
-
-Metrics
-
+- Logical dataset size
+- Physical storage size
 - Compression ratio
-- Storage footprint
-
----
-
-## Join Evaluation
-
-Benchmarks relational joins between telemetry and metadata.
-
-Metrics
-
-- Join latency
-
----
-
-# Scoring Methodology
-
-Each workload contributes to the final score using configurable weights defined in `benchmark.yaml`.
-
-Example:
-
-| Scenario | Weight |
-|----------|-------:|
-| Sustained Write | 20% |
-| Burst Load | 15% |
-| Time Range Queries | 15% |
-| Aggregation | 15% |
-| Historical Replay | 15% |
-| Compression | 10% |
-| Join Evaluation | 10% |
-
-The scoring engine normalizes workload metrics and generates an overall database ranking.
-
----
-
-# Technology Stack
-
-## Languages
-
-- Python 3.13
-
-## Databases
-
-- PostgreSQL
-- MySQL
-- TimescaleDB
-- QuestDB
-- ClickHouse
-- InfluxDB
-- MongoDB
-- DynamoDB Local
-
-## Tooling
-
-- Docker
-- Docker Compose
-- uv
-- Ruff
-- Mypy
-- Pytest
-- Structlog
-- AsyncIO
-
+- Compression percentage
+- Compression duration
 ---
 
 # Installation
 
-Clone the repository
+Clone the repository:
 
 ```bash
 git clone https://github.com/TagoreNandan/drone-storage-bench.git
@@ -253,7 +209,7 @@ git clone https://github.com/TagoreNandan/drone-storage-bench.git
 cd drone-storage-bench
 ```
 
-Install dependencies
+Install project dependencies using **uv**:
 
 ```bash
 uv sync
@@ -261,56 +217,181 @@ uv sync
 
 ---
 
+# Docker Support
+
+The project is fully containerized using Docker Compose.
+
+Running a single command automatically:
+
+- Builds the benchmark runner image
+- Starts every supported database
+- Waits until all databases become healthy
+- Executes the benchmark suite
+- Generates reports and charts
+- Stores results on the host machine
+
+No manual database installation is required.
+
+---
+
 # Running the Benchmark
 
-You can run the benchmark in two ways: using a completely containerized zero-setup flow, or by running the runner locally on your host machine while database services run in Docker.
+## Option 1 — Fully Containerized (Recommended)
 
-### Option A: Zero-Setup Containerized Flow (Recommended)
-
-If you only have Docker Desktop installed, you can build and run the entire suite automatically in containers. This flow automatically waits for all database services to become healthy before executing the benchmark, saving HTML/Markdown reports and charts into the host's `results/` folder:
+Build the benchmark runner and all database services:
 
 ```bash
-# Build and execute the full suite containerized
 docker compose up --build
 ```
 
-### Option B: Local Developer CLI Flow
+This command automatically:
 
-Spin up the target database backends in the background:
+- Builds the Docker image
+- Starts PostgreSQL
+- Starts MySQL
+- Starts TimescaleDB
+- Starts QuestDB
+- Starts ClickHouse
+- Starts MongoDB
+- Starts InfluxDB
+- Starts DynamoDB Local
+- Waits for health checks
+- Executes all enabled benchmark workloads
+- Generates benchmark reports
 
-```bash
-docker compose -f docker-compose.benchmark.yml up -d
-```
+After completion the generated artifacts are available inside:
 
-Execute the benchmark suite from your host CLI using `uv`:
-
-```bash
-# Run all enabled target database benchmarks
-uv run python -m benchmark.runners.cli run
+```text
+results/
 ```
 
 ---
 
-# Visualization & HTML Reports
+## Option 2 — Local Development using uv
 
-After each benchmark run, the framework automatically generates and saves the following artifacts into the `results/` folder:
-- **Comparative Charts (`results/charts/`)**: Generates 6 distinct matplotlib visual charts (overall rating, multi-dimensional radar comparison, throughput, latency percentiles, database compression ratios, and disk storage footprint comparison).
-- **HTML Summary Report (`results/reports/`)**: A responsive premium web report equipped with metadata dashboards, dark mode toggles, zoomable overlays for each chart, and detailed tabbed workloads.
-- **Markdown Report (`results/reports/`)**: A clean GitHub-flavored summary report embedded with relative visualization references.
+Start only the databases:
+
+```bash
+docker compose up -d
+```
+
+Run the benchmark locally:
+
+```bash
+uv run python -m benchmark.runners.cli run
+```
+
+This mode is useful while developing or debugging workloads without rebuilding the benchmark container.
+
+---
+
+# Benchmark Configuration
+
+The benchmark behavior is controlled entirely through:
+
+```text
+benchmark.yaml
+```
+
+Configuration options include:
+
+- Benchmark duration
+- Batch size
+- Drone count
+- Telemetry frequency
+- Enabled databases
+- Enabled workloads
+- Concurrency
+- Cooldown duration
+- Scoring weights
+
+No source code modifications are required to change benchmark behavior.
+
+---
+
+# Generated Reports
+
+Each benchmark execution automatically generates multiple artifacts.
+
+## Raw Results
+
+```text
+results/raw/
+```
+
+Contains structured JSON benchmark metrics suitable for further analysis.
+
+---
+
+## Markdown Report
+
+```text
+results/reports/
+```
+
+A GitHub-friendly benchmark summary is generated automatically.
+
+The report includes:
+
+- Database rankings
+- Per-workload metrics
+- Overall scores
+- Summary tables
+
+This report can be viewed directly on GitHub.
+
+---
+
+## Interactive HTML Report
+
+```text
+results/reports/
+```
+
+The framework also generates a responsive HTML report containing:
+
+- Benchmark metadata
+- Overall rankings
+- Performance dashboards
+- Interactive charts
+- Storage comparisons
+- Compression statistics
+- Workload summaries
+
+The HTML report can be opened in any modern browser.
+
+---
+
+## Performance Charts
+
+```text
+results/charts/
+```
+
+Visualization includes charts such as:
+
+- Overall database rankings
+- Throughput comparison
+- Query latency comparison
+- Radar comparison
+- Storage footprint
+- Compression efficiency
+
+These figures are generated automatically after every benchmark execution.
 
 ---
 
 # Running Tests
 
-Verify project correctness locally:
+Run the complete test suite:
 
 ```bash
 uv run pytest
 ```
 
-Current status:
+Current project status:
 
-```
+```text
 58 tests passed
 ```
 
@@ -318,72 +399,75 @@ Current status:
 
 # Static Analysis
 
-Ruff
+## Ruff
+
+Check linting:
 
 ```bash
 uv run ruff check .
 ```
 
-Mypy
+Format source code:
+
+```bash
+uv run ruff format .
+```
+
+---
+
+## MyPy
+
+Run strict type checking:
 
 ```bash
 uv run mypy src
 ```
 
-Both tools are configured in strict mode.
+The project is developed with strict static typing enabled.
 
 ---
 
-# Sample Benchmark Results
+# Reproducibility
 
-| Database | Overall Score |
-|-----------|--------------:|
-| PostgreSQL | 70.00 |
-| InfluxDB | 59.39 |
-| MySQL | 28.05 |
-| MongoDB | 26.07 |
-| TimescaleDB | 23.54 |
-| QuestDB | 21.56 |
-| ClickHouse | 6.07 |
-| DynamoDB Local | 4.34 |
+To ensure consistent benchmark execution, the framework provides:
 
-> **Note:** These results reflect the benchmark configuration and hardware used for this project. They should be interpreted as comparative measurements under identical workloads rather than absolute rankings for all deployment environments.
+- Deterministic random seed generation
+- Declarative benchmark configuration
+- Consistent telemetry generation
+- Fixed workload definitions
+- Automated Docker deployment
+- Health-checked database startup
+
+These features allow benchmark runs to be reproduced across different environments while keeping workload behavior consistent.
 
 ---
 
 # Quality Assurance
 
-- 55 Unit Tests
-- Strict Type Checking
-- Linting
-- Deterministic Seed Generation
-- Docker Health Checks
-- Reproducible Benchmarks
+The framework includes:
+
+- 58 automated unit tests
+- Ruff formatting
+- Ruff linting
+- Strict MyPy type checking
+- Docker health checks
+- Deterministic benchmark generation
+- Automated report generation
+- Continuous Integration workflow
 
 ---
 
 # Future Improvements
 
-- AWS DynamoDB benchmarking
-- Grafana dashboard integration
-- HTML reporting
+Planned enhancements include:
+
 - Kubernetes deployment
 - Distributed benchmarking
-- Additional database adapters
+- Grafana dashboards
+- Prometheus metrics export
 - Cloud-native benchmark execution
-
----
-
-# Lessons Learned
-
-During development, several engineering challenges were addressed:
-
-- Designing a common abstraction layer across heterogeneous databases
-- Managing asynchronous database clients
-- Ensuring reproducible benchmark execution
-- Maintaining strict type safety
-- Supporting SQL, NoSQL, and time-series databases through a unified interface
-- Producing consistent benchmark reports across multiple database engines
+- Additional database adapters
+- Extended analytical workloads
 
 ---
 
@@ -399,13 +483,19 @@ This project is released under the MIT License.
 
 B.Tech Computer Science
 
-Database Systems • Distributed Systems • Performance Engineering • Cloud Computing
+Areas of Interest:
+
+- Database Systems
+- Distributed Systems
+- Performance Engineering
+- Cloud Computing
+- Backend Systems
 
 ---
 
 # Acknowledgements
 
-Special thanks to the open-source communities behind:
+This project makes use of several outstanding open-source technologies:
 
 - PostgreSQL
 - MySQL
@@ -419,13 +509,13 @@ Special thanks to the open-source communities behind:
 - Python
 - uv
 - Ruff
-- Mypy
+- MyPy
 - Pytest
 
 ---
 
 <div align="center">
 
-⭐ If you found this project interesting, consider giving it a star!
+**Drone Storage Bench** provides a reproducible framework for evaluating modern database technologies under realistic UAV telemetry workloads, enabling fair, configurable, and repeatable performance comparisons.
 
 </div>
