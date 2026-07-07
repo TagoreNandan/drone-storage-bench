@@ -65,6 +65,8 @@ class CompressionEvaluationWorkload(BaseWorkload):
         # Retrieve physical storage size from adapter
         try:
             physical_size = await client.get_storage_size_bytes()
+            if physical_size is not None and physical_size <= 0:
+                physical_size = None
         except Exception as e:
             logger.error("Failed to retrieve physical disk storage size", error=str(e))
             completed_at = datetime.now(UTC)
@@ -101,15 +103,12 @@ class CompressionEvaluationWorkload(BaseWorkload):
             logical_size = total_rows * 128
 
         # Compute compression metrics
-        if physical_size > 0:
+        if physical_size is not None and physical_size > 0:
             compression_ratio = float(logical_size) / float(physical_size)
-        else:
-            compression_ratio = 1.0
-
-        if logical_size > 0:
             compression_percentage = (1.0 - (float(physical_size) / float(logical_size))) * 100.0
         else:
-            compression_percentage = 0.0
+            compression_ratio = None
+            compression_percentage = None
 
         completed_at = datetime.now(UTC)
         total_duration = time.perf_counter() - comp_start_timer
@@ -122,7 +121,7 @@ class CompressionEvaluationWorkload(BaseWorkload):
             ),
             BenchmarkMetric(
                 metric_type=MetricType.PHYSICAL_STORAGE_SIZE_BYTES,
-                value=float(physical_size),
+                value=float(physical_size) if physical_size is not None else None,
                 unit=MetricUnit.COUNT,
             ),
             BenchmarkMetric(

@@ -98,7 +98,7 @@ class BenchmarkMetric(BaseModel):
 
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     metric_type: MetricType
-    value: float
+    value: float | None = None
     unit: MetricUnit
     metadata: dict[str, Any] = Field(default_factory=dict)
 

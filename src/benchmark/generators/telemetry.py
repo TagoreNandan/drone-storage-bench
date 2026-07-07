@@ -2,7 +2,7 @@ import math
 import random
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
 from benchmark.core.seed import DeterministicSeedManager
@@ -74,7 +74,7 @@ class DeterministicTelemetryGenerator(BaseTelemetryGenerator):
         self.frequency_hz = frequency_hz
         self.duration_seconds = duration_seconds
         self.custom_metric_names = custom_metric_names or []
-        self.start_time = start_time or datetime(2026, 7, 4, 0, 0, 0)
+        self.start_time = start_time or datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC)
 
         # Enforce frequency constraints
         if not (10.0 <= self.frequency_hz <= 50.0):

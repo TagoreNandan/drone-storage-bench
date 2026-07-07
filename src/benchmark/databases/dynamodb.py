@@ -3,13 +3,15 @@ from typing import Any
 
 import aioboto3
 import structlog
-from boto3.dynamodb.conditions import Key
+from boto3.dynamodb.conditions import Attr, Key
 
 from benchmark.config.settings import AppSettings
 from benchmark.core.database import BaseDatabaseClient
 from benchmark.core.specification import TelemetryRecord
 
 logger = structlog.get_logger()
+
+
 def d(value: float) -> Decimal:
     """Convert float to DynamoDB Decimal safely."""
     return Decimal(str(value))
@@ -151,26 +153,29 @@ class DynamoDBClient(BaseDatabaseClient):
 
         import time
 
+        # 1. Format/Convert to Decimal outside of the timed block
+        items = [
+            {
+                "vehicle_id": record.vehicle_id,
+                "timestamp": record.timestamp.isoformat(),
+                "mission_id": record.mission_id,
+                "latitude": d(record.latitude),
+                "longitude": d(record.longitude),
+                "altitude": d(record.altitude),
+                "roll": d(record.roll),
+                "pitch": d(record.pitch),
+                "yaw": d(record.yaw),
+                "velocity": d(record.velocity),
+                "battery_percentage": d(record.battery_percentage),
+            }
+            for record in batch
+        ]
+
+        # 2. Time only the batch_writer write execution and flush
         start = time.perf_counter()
-
         async with self.table.batch_writer() as writer:
-            for record in batch:
-                await writer.put_item(
-                    Item={
-                        "vehicle_id": record.vehicle_id,
-                        "timestamp": record.timestamp.isoformat(),
-                        "mission_id": record.mission_id,
-                        "latitude": d(record.latitude),
-                        "longitude": d(record.longitude),
-                        "altitude": d(record.altitude),
-                        "roll": d(record.roll),
-                        "pitch": d(record.pitch),
-                        "yaw": d(record.yaw),
-                        "velocity": d(record.velocity),
-                        "battery_percentage": d(record.battery_percentage),
-                    }
-                )
-
+            for item in items:
+                await writer.put_item(Item=item)
         latency = time.perf_counter() - start
 
         return {
@@ -186,10 +191,14 @@ class DynamoDBClient(BaseDatabaseClient):
     ) -> dict[str, Any]:
         """Execute benchmark query."""
 
+        if query_name == "compress":
+            return {}
+
         if self.table is None:
             raise RuntimeError("Table not initialized.")
 
         import time
+        from datetime import datetime
 
         start = time.perf_counter()
 
@@ -217,6 +226,80 @@ class DynamoDBClient(BaseDatabaseClient):
             )
             row_count = len(response["Items"])
 
+        elif query_name == "aggregation_query":
+            vehicle_id = params["vehicle_id"]
+            start_iso = params["start_time"].isoformat()
+            end_iso = params["end_time"].isoformat()
+            interval = float(params.get("aggregation_interval_seconds", 60.0))
+
+            response = await self.table.query(
+                KeyConditionExpression=Key("vehicle_id").eq(vehicle_id)
+                & Key("timestamp").between(start_iso, end_iso)
+            )
+            items = response.get("Items", [])
+
+            buckets: dict[float, list[float]] = {}
+            for item in items:
+                ts_str = item["timestamp"]
+                # Parse ISO format string
+                ts_dt = datetime.fromisoformat(ts_str)
+                epoch = ts_dt.timestamp()
+                bucket_epoch = int(epoch / interval) * interval
+
+                battery = float(item.get("battery_percentage", 0.0))
+
+                if bucket_epoch not in buckets:
+                    buckets[bucket_epoch] = []
+                buckets[bucket_epoch].append(battery)
+
+            row_count = len(buckets)
+            latency = time.perf_counter() - start
+            return {
+                "latency_seconds": latency,
+                "groups_returned": row_count,
+            }
+
+        elif query_name == "historical_replay_query":
+            response = await self.table.scan(
+                FilterExpression=Attr("mission_id").eq(params["mission_id"])
+            )
+            items = response.get("Items", [])
+            items.sort(key=lambda x: x["timestamp"])
+            row_count = len(items)
+
+        elif query_name == "join_query":
+            vehicle_id = params["vehicle_id"]
+            start_iso = params["start_time"].isoformat()
+            end_iso = params["end_time"].isoformat()
+            response = await self.table.query(
+                KeyConditionExpression=Key("vehicle_id").eq(vehicle_id)
+                & Key("timestamp").between(start_iso, end_iso)
+            )
+            items = response.get("Items", [])
+            row_count = len(items)
+
+            start_merge = time.perf_counter()
+            vehicles_dict = {
+                f"drone_{i:04d}": {"model": f"Model-{i%5}", "manufacturer": f"Manufacturer-{i%3}"}
+                for i in range(200)
+            }
+            joined_items = []
+            for item in items:
+                v_meta = vehicles_dict.get(
+                    item.get("vehicle_id", ""), {"model": "Unknown", "manufacturer": "Unknown"}
+                )
+                joined_item = {**item, **v_meta}
+                joined_items.append(joined_item)
+            merge_duration_ms = (time.perf_counter() - start_merge) * 1000.0
+
+            latency = time.perf_counter() - start
+            return {
+                "latency_seconds": latency,
+                "row_count": row_count,
+                "join_strategy": "app_merge",
+                "merge_duration_ms": merge_duration_ms,
+            }
+
         else:
             raise ValueError(f"Unsupported query: {query_name}")
 
@@ -227,19 +310,6 @@ class DynamoDBClient(BaseDatabaseClient):
             "row_count": row_count,
         }
 
-    async def get_storage_size_bytes(self) -> int:
+    async def get_storage_size_bytes(self) -> int | None:
         """Return approximate storage size."""
-
-        if self.resource is None:
-            return 0
-
-        description = await self.resource.meta.client.describe_table(
-            TableName=self.connection_config.table_name,
-        )
-
-        return int(
-            description["Table"].get(
-                "TableSizeBytes",
-                0,
-            )
-        )
+        return None

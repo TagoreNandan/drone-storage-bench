@@ -33,6 +33,8 @@ env/
 .vscode/
 *.swp
 *.swo
+.DS_Store
+*.DS_Store
 
 # Project specific caches
 .ruff_cache/
@@ -56,3 +58,5 @@ results/processed/*
 !results/processed/.gitkeep
 results/reports/*
 !results/reports/.gitkeep
+results/charts/*
+!results/charts/.gitkeep

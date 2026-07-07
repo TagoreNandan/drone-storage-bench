@@ -23,6 +23,8 @@ class ClickHouseClient(BaseDatabaseClient):
         super().__init__(settings)
         self.connection_config = settings.clickhouse
         self.client: Client | None = None
+        import asyncio
+        self.lock = asyncio.Lock()
 
     async def connect(self) -> None:
         """Establishes a ClickHouse connection."""
@@ -65,7 +67,7 @@ class ClickHouseClient(BaseDatabaseClient):
             return False
 
     async def setup_schema(self) -> None:
-        """Creates the telemetry table."""
+        """Creates the telemetry and vehicles tables."""
 
         if self.client is None:
             raise RuntimeError("ClickHouse client has not been initialized.")
@@ -93,6 +95,32 @@ class ClickHouseClient(BaseDatabaseClient):
         """
         )
 
+        self.client.command(
+            """
+        CREATE TABLE IF NOT EXISTS vehicles
+        (
+            vehicle_id String,
+            model String,
+            manufacturer String
+        )
+        ENGINE = MergeTree
+        ORDER BY vehicle_id
+        """
+        )
+
+        # Populate vehicles if empty
+        res = self.client.query("SELECT count() FROM vehicles")
+        if res.result_rows[0][0] == 0:
+            vehicles_data = [
+                (f"drone_{i:04d}", f"Model-{i%5}", f"Manufacturer-{i%3}")
+                for i in range(200)
+            ]
+            self.client.insert(
+                "vehicles",
+                vehicles_data,
+                column_names=["vehicle_id", "model", "manufacturer"],
+            )
+
     async def cleanup_data(self) -> None:
         """Removes benchmark telemetry."""
 
@@ -111,45 +139,54 @@ class ClickHouseClient(BaseDatabaseClient):
         if self.client is None:
             raise RuntimeError("ClickHouse client has not been initialized.")
 
+        import asyncio
         import time
 
-        start = time.perf_counter()
-
-        rows = [
+        # 1. Format/Serialize outside of the timed block
+        data = [
             [
-                record.timestamp,
-                record.vehicle_id,
-                record.mission_id,
-                record.latitude,
-                record.longitude,
-                record.altitude,
-                record.roll,
-                record.pitch,
-                record.yaw,
-                record.velocity,
-                record.battery_percentage,
+                r.timestamp,
+                r.vehicle_id,
+                r.mission_id,
+                r.latitude,
+                r.longitude,
+                r.altitude,
+                r.roll,
+                r.pitch,
+                r.yaw,
+                r.velocity,
+                r.battery_percentage,
             ]
-            for record in batch
+            for r in batch
         ]
 
-        self.client.insert(
-            table="telemetry",
-            data=rows,
-            column_names=[
-                "timestamp",
-                "vehicle_id",
-                "mission_id",
-                "latitude",
-                "longitude",
-                "altitude",
-                "roll",
-                "pitch",
-                "yaw",
-                "velocity",
-                "battery_percentage",
-            ],
-        )
-        latency = time.perf_counter() - start
+        column_names = [
+            "timestamp",
+            "vehicle_id",
+            "mission_id",
+            "latitude",
+            "longitude",
+            "altitude",
+            "roll",
+            "pitch",
+            "yaw",
+            "velocity",
+            "battery_percentage",
+        ]
+
+        # 2. Time only the database insert operation, executing on a worker thread
+        loop = asyncio.get_event_loop()
+        async with self.lock:
+            start = time.perf_counter()
+            await loop.run_in_executor(
+                None,
+                self.client.insert,
+                "telemetry",
+                data,
+                column_names,
+            )
+            latency = time.perf_counter() - start
+
         return {
             "latency_seconds": latency,
             "success_count": len(batch),
@@ -163,60 +200,129 @@ class ClickHouseClient(BaseDatabaseClient):
     ) -> dict[str, Any]:
         """Executes benchmark queries against ClickHouse."""
 
+        if query_name == "compress":
+            return {}
+
         if self.client is None:
             raise RuntimeError("ClickHouse client has not been initialized.")
         import time
 
         query_map = {
-            "total_row_count": "SELECT COUNT(*) FROM telemetry",
+            "total_row_count": "SELECT count() FROM telemetry",
             "time_range_query": """
                 SELECT *
                 FROM telemetry
-                WHERE timestamp BETWEEN %(start)s AND %(end)s
+                WHERE vehicle_id = %(vehicle_id)s AND timestamp BETWEEN %(start)s AND %(end)s
                 ORDER BY timestamp
+            """,
+            "aggregation_query": """
+                SELECT toStartOfInterval(timestamp, INTERVAL %(interval_sec)s SECOND) AS bucket,
+                       avg(battery_percentage) as avg_value
+                FROM telemetry
+                WHERE vehicle_id = %(vehicle_id)s AND timestamp BETWEEN %(start)s AND %(end)s
+                GROUP BY bucket
+                ORDER BY bucket
+            """,
+            "historical_replay_query": """
+                SELECT *
+                FROM telemetry
+                WHERE mission_id = %(mission_id)s
+                ORDER BY timestamp ASC
+            """,
+            "join_query": """
+                SELECT t.*, v.model, v.manufacturer
+                FROM telemetry t
+                JOIN vehicles v ON t.vehicle_id = v.vehicle_id
+                WHERE t.vehicle_id = %(vehicle_id)s AND t.timestamp BETWEEN %(start)s AND %(end)s
+                ORDER BY t.timestamp
             """,
         }
 
         if query_name not in query_map:
             raise ValueError(f"Unsupported query: {query_name}")
 
-        start = time.perf_counter()
-        if query_name == "total_row_count":
-            result = self.client.query(query_map[query_name])
-            row_count = int(result.result_rows[0][0])
-        else:
-            result = self.client.query(
-                query_map[query_name],
-                parameters={
-                    "start": params["start_time"],
-                    "end": params["end_time"],
-                },
-            )
-        row_count = len(result.result_rows)
+        async with self.lock:
+            start = time.perf_counter()
+            if query_name == "total_row_count":
+                result = self.client.query(query_map[query_name])
+                row_count = int(result.result_rows[0][0])
+            elif query_name == "time_range_query":
+                result = self.client.query(
+                    query_map[query_name],
+                    parameters={
+                        "vehicle_id": params["vehicle_id"],
+                        "start": params["start_time"],
+                        "end": params["end_time"],
+                    },
+                )
+                row_count = len(result.result_rows)
+            elif query_name == "aggregation_query":
+                interval = int(params.get("aggregation_interval_seconds", 60))
+                result = self.client.query(
+                    query_map[query_name],
+                    parameters={
+                        "vehicle_id": params["vehicle_id"],
+                        "interval_sec": interval,
+                        "start": params["start_time"],
+                        "end": params["end_time"],
+                    },
+                )
+                row_count = len(result.result_rows)
+                latency = time.perf_counter() - start
+                return {
+                    "latency_seconds": latency,
+                    "groups_returned": row_count,
+                }
+            elif query_name == "historical_replay_query":
+                result = self.client.query(
+                    query_map[query_name],
+                    parameters={
+                        "mission_id": params["mission_id"],
+                    },
+                )
+                row_count = len(result.result_rows)
+            elif query_name == "join_query":
+                result = self.client.query(
+                    query_map[query_name],
+                    parameters={
+                        "vehicle_id": params["vehicle_id"],
+                        "start": params["start_time"],
+                        "end": params["end_time"],
+                    },
+                )
+                row_count = len(result.result_rows)
+                latency = time.perf_counter() - start
+                return {
+                    "latency_seconds": latency,
+                    "row_count": row_count,
+                    "join_strategy": "native",
+                    "merge_duration_ms": 0.0,
+                }
 
-        latency = time.perf_counter() - start
+            latency = time.perf_counter() - start
 
         return {
             "latency_seconds": latency,
             "row_count": row_count,
         }
 
-    async def get_storage_size_bytes(self) -> int:
-        """Returns storage used by the telemetry table."""
+    async def get_storage_size_bytes(self) -> int | None:
+        """Returns storage used by the telemetry and vehicles tables."""
 
         if self.client is None:
             raise RuntimeError("ClickHouse client has not been initialized.")
 
-        result = self.client.query(
-            """
-            SELECT sum(bytes_on_disk)
-            FROM system.parts
-            WHERE database = currentDatabase()
-              AND table = 'telemetry'
-              AND active
-            """
-        )
+        async with self.lock:
+            result = self.client.query(
+                """
+                SELECT sum(bytes_on_disk)
+                FROM system.parts
+                WHERE database = currentDatabase()
+                  AND table IN ('telemetry', 'vehicles')
+                  AND active
+                """
+            )
 
-        value = result.result_rows[0][0]
+            value = result.result_rows[0][0]
 
         return int(value or 0)

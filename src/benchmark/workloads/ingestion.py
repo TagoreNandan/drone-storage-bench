@@ -1,7 +1,8 @@
 import asyncio
 import math
+import random
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import structlog
 
@@ -95,6 +96,18 @@ class WriteThroughputWorkload(BaseWorkload):
         logger.info(
             "Starting sustained write throughput benchmark execution", duration=benchmark_duration
         )
+        # Re-initialize generator/batches to ensure we don't run out of records due to unthrottled warmup
+        generator = DeterministicTelemetryGenerator(
+            seed_manager=seed_manager,
+            num_drones=self.scenario.dataset_profile.simulated_drones,
+            frequency_hz=self.scenario.dataset_profile.telemetry_frequency_hz,
+            duration_seconds=benchmark_duration + 10.0,
+            custom_metric_names=None,
+            start_time=generator.start_time + timedelta(seconds=warmup_duration),
+        )
+        records_stream = generator.stream_records()
+        batches = batch_generator(records_stream, batch_size)
+
         successful_batches = 0
         failed_batches = 0
         total_rows_written = 0
@@ -297,6 +310,18 @@ class BurstWriteLatencyWorkload(BaseWorkload):
             burst_duration=burst_duration,
             burst_multiplier=burst_multiplier,
         )
+        # Re-initialize generator/batches to ensure we don't run out of records due to unthrottled warmup
+        generator = DeterministicTelemetryGenerator(
+            seed_manager=seed_manager,
+            num_drones=drones_count,
+            frequency_hz=freq_hz,
+            duration_seconds=benchmark_duration + 10.0,
+            custom_metric_names=None,
+            start_time=generator.start_time + timedelta(seconds=warmup_duration),
+        )
+        records_stream = generator.stream_records()
+        batches = batch_generator(records_stream, batch_size)
+
         successful_batches = 0
         failed_batches = 0
         total_rows_written = 0
@@ -313,6 +338,61 @@ class BurstWriteLatencyWorkload(BaseWorkload):
         started_at = datetime.now(UTC)
         benchmark_start_timer = time.perf_counter()
         last_step_timer = benchmark_start_timer
+
+        # Concurrent readers execution if configured for mixed workload
+        read_task = None
+        stop_reads = asyncio.Event()
+        read_latencies_ms: list[float] = []
+        successful_reads = 0
+
+        qp = self.scenario.query_profile
+        if self.scenario.concurrent_readers > 0 and qp is not None:
+
+            async def run_concurrent_reads() -> None:
+                nonlocal successful_reads
+                local_rand = random.Random(self.scenario.deterministic_random_seed + 1)
+                start_time = datetime(2026, 7, 4, 0, 0, 0, tzinfo=UTC)
+
+                patterns = qp.query_patterns or ["time_range_query"]
+
+                while not stop_reads.is_set():
+                    pattern = local_rand.choice(patterns)
+                    window_size = qp.time_window_seconds
+                    max_offset = max(0.0, benchmark_duration - window_size)
+                    offset = local_rand.uniform(0.0, max_offset)
+                    w_start = start_time + timedelta(seconds=offset)
+                    w_end = w_start + timedelta(seconds=window_size)
+
+                    vehicle_idx = local_rand.randint(0, max(0, drones_count - 1))
+                    vehicle_id = f"drone_{vehicle_idx:04d}"
+
+                    query_params = {
+                        "start_time": w_start,
+                        "end_time": w_end,
+                        "vehicle_id": vehicle_id,
+                        "aggregation_interval_seconds": 60.0,
+                    }
+
+                    q_start = time.perf_counter()
+                    try:
+                        q_name = "time_range_query"
+                        if pattern in ("altitude_anomaly_detection", "battery_drain_rate_by_drone_model"):
+                            q_name = "aggregation_query"
+                        elif pattern == "join_control_plane_metadata":
+                            q_name = "join_query"
+                        elif pattern in ("time_range_query", "aggregation_query", "historical_replay_query", "join_query"):
+                            q_name = pattern
+
+                        await client.execute_query(q_name, query_params)
+                        q_lat = (time.perf_counter() - q_start) * 1000.0
+                        read_latencies_ms.append(q_lat)
+                        successful_reads += 1
+                    except Exception as e:
+                        logger.debug("Concurrent query failed in mixed workload", error=str(e))
+
+                    await asyncio.sleep(0.05)
+
+            read_task = asyncio.create_task(run_concurrent_reads())
 
         for batch in batches:
             current_timer = time.perf_counter()
@@ -373,6 +453,14 @@ class BurstWriteLatencyWorkload(BaseWorkload):
             if time.perf_counter() - benchmark_start_timer >= benchmark_duration:
                 break
 
+        # Stop and await concurrent read task
+        stop_reads.set()
+        if read_task:
+            try:
+                await read_task
+            except Exception:
+                pass
+
         completed_at = datetime.now(UTC)
         total_duration = time.perf_counter() - benchmark_start_timer
 
@@ -419,6 +507,11 @@ class BurstWriteLatencyWorkload(BaseWorkload):
                 unit=MetricUnit.MILLISECONDS,
             ),
             BenchmarkMetric(
+                metric_type=MetricType.AVERAGE_LATENCY_MS,
+                value=avg_latency,
+                unit=MetricUnit.MILLISECONDS,
+            ),
+            BenchmarkMetric(
                 metric_type=MetricType.P50_BATCH_LATENCY_MS,
                 value=p50,
                 unit=MetricUnit.MILLISECONDS,
@@ -448,6 +541,38 @@ class BurstWriteLatencyWorkload(BaseWorkload):
                 value=throughput_outside,
                 unit=MetricUnit.RECORDS_PER_SECOND,
             ),
+        ]
+
+        if read_latencies_ms:
+            read_avg = sum(read_latencies_ms) / len(read_latencies_ms)
+            read_p95 = calculate_percentile(read_latencies_ms, 95.0)
+            read_p99 = calculate_percentile(read_latencies_ms, 99.0)
+            read_ops = successful_reads / total_duration if total_duration > 0 else 0.0
+
+            metrics.extend([
+                BenchmarkMetric(
+                    metric_type=MetricType.READ_THROUGHPUT,
+                    value=read_ops,
+                    unit=MetricUnit.RECORDS_PER_SECOND,
+                ),
+                BenchmarkMetric(
+                    metric_type=MetricType.READ_LATENCY_MEAN,
+                    value=read_avg,
+                    unit=MetricUnit.MILLISECONDS,
+                ),
+                BenchmarkMetric(
+                    metric_type=MetricType.READ_LATENCY_P95,
+                    value=read_p95,
+                    unit=MetricUnit.MILLISECONDS,
+                ),
+                BenchmarkMetric(
+                    metric_type=MetricType.READ_LATENCY_P99,
+                    value=read_p99,
+                    unit=MetricUnit.MILLISECONDS,
+                ),
+            ])
+
+        metrics.extend([
             # Standard mappings for base reporting systems
             BenchmarkMetric(
                 metric_type=MetricType.WRITE_THROUGHPUT,
@@ -469,7 +594,7 @@ class BurstWriteLatencyWorkload(BaseWorkload):
                 value=p99,
                 unit=MetricUnit.MILLISECONDS,
             ),
-        ]
+        ])
 
         success = failed_batches <= failure_threshold
         error_msg = str(last_exception) if last_exception else None

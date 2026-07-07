@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drone Storage Bench - Report</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚁</text></svg>">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+    
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --primary-glow: rgba(59, 130, 246, 0.08);
+      --success: #10b981;
+      --success-glow: rgba(16, 185, 129, 0.08);
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.08);
+      
+      --accent-gold: #fbbf24;
+      --accent-silver: #94a3b8;
+      --accent-bronze: #ca8a04;
+      --card-radius: 16px;
+    }
+    
+    [data-theme="dark"] {
+      --bg-primary: #090d16;
+      --bg-secondary: #111827;
+      --bg-tertiary: #1f2937;
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      --border-color: #1f2937;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+      --primary: #60a5fa;
+      --primary-hover: #3b82f6;
+      --primary-glow: rgba(96, 165, 250, 0.08);
+      --success: #34d399;
+      --success-glow: rgba(52, 211, 153, 0.08);
+      --danger: #f87171;
+      --danger-glow: rgba(248, 113, 113, 0.08);
+    }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      transition: background-color 0.3s, color 0.3s;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    
+    /* Header Section */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    
+    .logo-title-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .logo-emoji {
+      font-size: 2.5rem;
+    }
+    
+    .title-area h1 {
+      margin: 0;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    
+    .timestamp {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    
+    /* Dark Mode Toggle Switch */
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg-secondary);
+      padding: 0.5rem 1rem;
+      border-radius: 30px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .toggle-label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    
+    .theme-switch {
+      position: relative;
+      display: inline-block;
+      width: 48px;
+      height: 24px;
+    }
+    
+    .theme-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+    
+    /* Metadata Grid */
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    
+    .meta-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--card-radius);
+      padding: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: var(--shadow-sm);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .meta-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .meta-icon {
+      font-size: 2rem;
+      background: var(--primary-glow);
+      padding: 0.5rem;
+      border-radius: 12px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .meta-content {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .meta-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .meta-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 0.15rem;
+    }
+    
+    /* Section Cards */
+    .section-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--card-radius);
+      padding: 1.75rem;
+      margin-bottom: 2.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .section-title {
+      margin: 0 0 1.25rem 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .section-subtitle {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      margin: -0.75rem 0 1.5rem 0;
+    }
+    
+    /* Rankings & Index */
+    .rankings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    
+    .rank-card {
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.25rem;
+      background: var(--bg-secondary);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .rank-card::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+    }
+    
+    .rank-1::after { background: var(--accent-gold); }
+    .rank-2::after { background: var(--accent-silver); }
+    .rank-3::after { background: var(--accent-bronze); }
+    .rank-other::after { background: var(--primary); }
+    
+    .rank-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+    
+    .rank-trophy {
+      font-size: 1.75rem;
+    }
+    
+    .rank-db-details {
+      flex: 1;
+      margin-left: 0.75rem;
+    }
+    
+    .rank-db-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    
+    .rank-lbl {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+    
+    .rank-overall-score {
+      text-align: right;
+    }
+    
+    .score-num {
+      display: block;
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.1;
+    }
+    
+    .score-lbl {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    
+    .rank-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .progress-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    
+    .progress-scen {
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+    
+    .progress-val {
+      color: var(--text-primary);
+    }
+    
+    .progress-bar-track {
+      background: var(--bg-tertiary);
+      height: 6px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill {
+      background: var(--primary);
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s ease-out;
+    }
+    
+    /* Interactive Tabs Section */
+    .tabs-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    
+    .tabs-list {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.6rem 1.1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+    
+    .tab-btn.active {
+      color: white;
+      background: var(--primary);
+    }
+    
+    .tab-pane {
+      display: none;
+    }
+    
+    .tab-pane.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    /* Table Styling */
+    .table-container {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    
+    th {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-weight: 600;
+      padding: 0.85rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    td {
+      padding: 1.1rem 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+    
+    tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .db-row-name {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 20px;
+    }
+    
+    .status-badge.success {
+      background: var(--success-glow);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+    
+    .status-badge.failure {
+      background: var(--danger-glow);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    
+    .status-badge.success .badge-dot {
+      background-color: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.8s infinite;
+    }
+    
+    .status-badge.failure .badge-dot {
+      background-color: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+    }
+    
+    /* Metric Pills grid */
+    .metrics-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.65rem;
+    }
+    
+    .metric-card-pill {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .metric-card-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    
+    .metric-card-value {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-top: 0.15rem;
+    }
+    
+    .metric-unit {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    
+    .error-card-msg {
+      color: var(--danger);
+      background: var(--danger-glow);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px dashed rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Visualizations Gallery */
+    .charts-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .chart-gallery-item {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: transform 0.25s, box-shadow 0.25s;
+    }
+    
+    .chart-gallery-item:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .chart-item-header {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    
+    .chart-img-container {
+      position: relative;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border: 1px solid var(--border-color);
+      aspect-ratio: 16/10;
+    }
+    
+    .chart-img-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: filter 0.25s;
+    }
+    
+    .chart-gallery-item:hover img {
+      filter: blur(1.5px) brightness(0.85);
+    }
+    
+    .zoom-overlay {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      color: white;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+    }
+    
+    .chart-gallery-item:hover .zoom-overlay {
+      opacity: 1;
+    }
+    
+    /* Lightbox Modal */
+    .lightbox {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      padding: 1.5rem;
+    }
+    
+    .lightbox.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    .lightbox-img {
+      max-width: 90%;
+      max-height: 80%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+      background: white;
+    }
+    
+    .lightbox.open .lightbox-img {
+      transform: scale(1);
+    }
+    
+    .close-btn {
+      position: absolute;
+      top: 1.5rem;
+      right: 1.5rem;
+      color: white;
+      font-size: 2.25rem;
+      cursor: pointer;
+      font-weight: bold;
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    
+    .lightbox-caption {
+      color: #f8fafc;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-top: 1.25rem;
+    }
+    
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-title-group">
+        <div class="logo-emoji">🚁</div>
+        <div class="title-area">
+          <h1>Drone Storage Bench</h1>
+          <div class="timestamp">Generated: July 06, 2026 - 12:58:01 UTC</div>
+        </div>
+      </div>
+      
+      <div class="toggle-container">
+        <span class="toggle-label">Dark Mode</span>
+        <label class="theme-switch">
+          <input type="checkbox" id="theme-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </header>
+    
+    <!-- Metadata Dashboard -->
+    <section class="metadata-grid">
+      
+        <div class="meta-card">
+          <div class="meta-icon">📋</div>
+          <div class="meta-content">
+            <span class="meta-label">Suite Name</span>
+            <span class="meta-value">Verification Report</span>
+          </div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-icon">⚡</div>
+          <div class="meta-content">
+            <span class="meta-label">Databases Tested</span>
+            <span class="meta-value">ClickHouse, PostgreSQL, QuestDB, TimescaleDB</span>
+          </div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-icon">📈</div>
+          <div class="meta-content">
+            <span class="meta-label">Workload Scenarios</span>
+            <span class="meta-value">2</span>
+          </div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-icon">🛡️</div>
+          <div class="meta-content">
+            <span class="meta-label">Execution Success</span>
+            <span class="meta-value">8 / 8 Passed</span>
+          </div>
+        </div>
+        
+    </section>
+    
+    <!-- Comparative scoring rankings -->
+    
+            <div class="section-card">
+              <h2 class="section-title">🏆 Performance Rankings and Index Scores</h2>
+              <div class="rankings-grid">
+                <div class="rank-card rank-other">  <div class="rank-card-header">    <div class="rank-trophy">🏅</div>    <div class="rank-db-details">      <h3 class="rank-db-title">PostgreSQL</h3>      <span class="rank-lbl">Rank 4</span>    </div>    <div class="rank-overall-score">      <span class="score-num">45.0</span>      <span class="score-lbl">Index</span>    </div>  </div>  <div class="rank-card-body">    <div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Sustained Ingestion</span>    <span class="progress-val">120,000.00 (47.2%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 47.25%"></div>  </div></div>
+<div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Dataset Compression</span>    <span class="progress-val">5.00 (42.8%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 42.75%"></div>  </div></div>  </div></div>
+<div class="rank-card rank-1">  <div class="rank-card-header">    <div class="rank-trophy">🥇</div>    <div class="rank-db-details">      <h3 class="rank-db-title">QuestDB</h3>      <span class="rank-lbl">Rank 1</span>    </div>    <div class="rank-overall-score">      <span class="score-num">92.5</span>      <span class="score-lbl">Index</span>    </div>  </div>  <div class="rank-card-body">    <div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Sustained Ingestion</span>    <span class="progress-val">120,000.00 (97.1%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 97.125%"></div>  </div></div>
+<div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Dataset Compression</span>    <span class="progress-val">5.00 (87.9%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 87.875%"></div>  </div></div>  </div></div>
+<div class="rank-card rank-3">  <div class="rank-card-header">    <div class="rank-trophy">🥉</div>    <div class="rank-db-details">      <h3 class="rank-db-title">TimescaleDB</h3>      <span class="rank-lbl">Rank 3</span>    </div>    <div class="rank-overall-score">      <span class="score-num">72.0</span>      <span class="score-lbl">Index</span>    </div>  </div>  <div class="rank-card-body">    <div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Sustained Ingestion</span>    <span class="progress-val">120,000.00 (75.6%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 75.60000000000001%"></div>  </div></div>
+<div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Dataset Compression</span>    <span class="progress-val">5.00 (68.4%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 68.39999999999999%"></div>  </div></div>  </div></div>
+<div class="rank-card rank-2">  <div class="rank-card-header">    <div class="rank-trophy">🥈</div>    <div class="rank-db-details">      <h3 class="rank-db-title">ClickHouse</h3>      <span class="rank-lbl">Rank 2</span>    </div>    <div class="rank-overall-score">      <span class="score-num">88.0</span>      <span class="score-lbl">Index</span>    </div>  </div>  <div class="rank-card-body">    <div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Sustained Ingestion</span>    <span class="progress-val">120,000.00 (92.4%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 92.4%"></div>  </div></div>
+<div class="progress-container">  <div class="progress-labels">    <span class="progress-scen">Dataset Compression</span>    <span class="progress-val">5.00 (83.6%)</span>  </div>  <div class="progress-bar-track">    <div class="progress-bar-fill" style="width: 83.6%"></div>  </div></div>  </div></div>
+              </div>
+            </div>
+            
+    
+    <!-- Performance Visualization Gallery -->
+    
+        <div class="section-card">
+          <h2 class="section-title">🖼️ Performance Visualizations Gallery</h2>
+          <p class="section-subtitle">Click any chart to zoom and inspect in detail.</p>
+          <div class="charts-gallery">
+            <div class="chart-gallery-item" onclick="openLightbox('../charts/verification_report_overall_score.png', 'Overall Performance Scores')">
+              <div class="chart-item-header">Overall Performance Index</div>
+              <div class="chart-img-container">
+                <img src="../charts/verification_report_overall_score.png" alt="Overall Performance Score">
+                <div class="zoom-overlay">🔍 Zoom Chart</div>
+              </div>
+            </div>
+            <div class="chart-gallery-item" onclick="openLightbox('../charts/verification_report_radar_chart.png', 'Multi-Dimensional Comparison')">
+              <div class="chart-item-header">Performance Dimensions (Radar)</div>
+              <div class="chart-img-container">
+                <img src="../charts/verification_report_radar_chart.png" alt="Radar Chart">
+                <div class="zoom-overlay">🔍 Zoom Chart</div>
+              </div>
+            </div>
+            <div class="chart-gallery-item" onclick="openLightbox('../charts/verification_report_throughput.png', 'Throughput Performance')">
+              <div class="chart-item-header">Write & Read Throughput</div>
+              <div class="chart-img-container">
+                <img src="../charts/verification_report_throughput.png" alt="Throughput Chart">
+                <div class="zoom-overlay">🔍 Zoom Chart</div>
+              </div>
+            </div>
+            <div class="chart-gallery-item" onclick="openLightbox('../charts/verification_report_latency.png', 'Latency Benchmarks')">
+              <div class="chart-item-header">Average & Percentile Latencies</div>
+              <div class="chart-img-container">
+                <img src="../charts/verification_report_latency.png" alt="Latency Chart">
+                <div class="zoom-overlay">🔍 Zoom Chart</div>
+              </div>
+            </div>
+            <div class="chart-gallery-item" onclick="openLightbox('../charts/verification_report_compression.png', 'Compression Efficiencies')">
+              <div class="chart-item-header">Compression Ratio & Savings</div>
+              <div class="chart-img-container">
+                <img src="../charts/verification_report_compression.png" alt="Compression Chart">
+                <div class="zoom-overlay">🔍 Zoom Chart</div>
+              </div>
+            </div>
+            <div class="chart-gallery-item" onclick="openLightbox('../charts/verification_report_storage_footprint.png', 'Physical Storage Footprints')">
+              <div class="chart-item-header">Physical Disk Footprint</div>
+              <div class="chart-img-container">
+                <img src="../charts/verification_report_storage_footprint.png" alt="Storage Footprint Chart">
+                <div class="zoom-overlay">🔍 Zoom Chart</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+    
+    <!-- Detailed telemetry & logs -->
+    
+        <div class="section-card">
+          <h2 class="section-title">📊 Detailed Workload Scenarios</h2>
+          <div class="tabs-container">
+            <div class="tabs-list">
+              <button class="tab-btn active" onclick="switchTab(event, 'tab-0')">Sustained Ingestion</button><button class="tab-btn " onclick="switchTab(event, 'tab-1')">Dataset Compression</button>
+            </div>
+            <div class="tabs-content">
+              <div id="tab-0" class="tab-pane active">  <div class="table-container">    <table>      <thead>        <tr>          <th>Database</th>          <th>Status</th>          <th>Execution Time</th>          <th>Telemetry & Performance Metrics</th>        </tr>      </thead>      <tbody>        <tr>  <td><span class="db-row-name">PostgreSQL</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">rows_per_second</span>  <span class="metric-card-value">40,000.00 <span class="metric-unit">rec/sec</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">average_latency_ms</span>  <span class="metric-card-value">15.40 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p95_latency_ms</span>  <span class="metric-card-value">27.72 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p99_latency_ms</span>  <span class="metric-card-value">38.50 <span class="metric-unit">ms</span></span></div></div></td></tr><tr>  <td><span class="db-row-name">QuestDB</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">rows_per_second</span>  <span class="metric-card-value">120,000.00 <span class="metric-unit">rec/sec</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">average_latency_ms</span>  <span class="metric-card-value">1.80 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p95_latency_ms</span>  <span class="metric-card-value">3.24 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p99_latency_ms</span>  <span class="metric-card-value">4.50 <span class="metric-unit">ms</span></span></div></div></td></tr><tr>  <td><span class="db-row-name">TimescaleDB</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">rows_per_second</span>  <span class="metric-card-value">80,000.00 <span class="metric-unit">rec/sec</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">average_latency_ms</span>  <span class="metric-card-value">5.20 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p95_latency_ms</span>  <span class="metric-card-value">9.36 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p99_latency_ms</span>  <span class="metric-card-value">13.00 <span class="metric-unit">ms</span></span></div></div></td></tr><tr>  <td><span class="db-row-name">ClickHouse</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">rows_per_second</span>  <span class="metric-card-value">100,000.00 <span class="metric-unit">rec/sec</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">average_latency_ms</span>  <span class="metric-card-value">2.50 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p95_latency_ms</span>  <span class="metric-card-value">4.50 <span class="metric-unit">ms</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">p99_latency_ms</span>  <span class="metric-card-value">6.25 <span class="metric-unit">ms</span></span></div></div></td></tr>      </tbody>    </table>  </div></div><div id="tab-1" class="tab-pane ">  <div class="table-container">    <table>      <thead>        <tr>          <th>Database</th>          <th>Status</th>          <th>Execution Time</th>          <th>Telemetry & Performance Metrics</th>        </tr>      </thead>      <tbody>        <tr>  <td><span class="db-row-name">PostgreSQL</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">compression_ratio</span>  <span class="metric-card-value">1.20 <span class="metric-unit">count</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">compression_percentage</span>  <span class="metric-card-value">16.67 <span class="metric-unit">percent</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">physical_storage_size_bytes</span>  <span class="metric-card-value">833,333,333.33 <span class="metric-unit">bytes</span></span></div></div></td></tr><tr>  <td><span class="db-row-name">QuestDB</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">compression_ratio</span>  <span class="metric-card-value">4.80 <span class="metric-unit">count</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">compression_percentage</span>  <span class="metric-card-value">79.17 <span class="metric-unit">percent</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">physical_storage_size_bytes</span>  <span class="metric-card-value">208,333,333.33 <span class="metric-unit">bytes</span></span></div></div></td></tr><tr>  <td><span class="db-row-name">TimescaleDB</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">compression_ratio</span>  <span class="metric-card-value">3.50 <span class="metric-unit">count</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">compression_percentage</span>  <span class="metric-card-value">71.43 <span class="metric-unit">percent</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">physical_storage_size_bytes</span>  <span class="metric-card-value">285,714,285.71 <span class="metric-unit">bytes</span></span></div></div></td></tr><tr>  <td><span class="db-row-name">ClickHouse</span></td>  <td><span class="status-badge success"><span class="badge-dot"></span>Success</span></td>  <td>0.00s</td>  <td><div class="metrics-card-grid"><div class="metric-card-pill">  <span class="metric-card-label">compression_ratio</span>  <span class="metric-card-value">6.20 <span class="metric-unit">count</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">compression_percentage</span>  <span class="metric-card-value">83.87 <span class="metric-unit">percent</span></span></div><div class="metric-card-pill">  <span class="metric-card-label">physical_storage_size_bytes</span>  <span class="metric-card-value">161,290,322.58 <span class="metric-unit">bytes</span></span></div></div></td></tr>      </tbody>    </table>  </div></div>
+            </div>
+          </div>
+        </div>
+        
+  </div>
+  
+  <!-- Lightbox Modal -->
+  <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
+    <span class="close-btn" onclick="closeLightbox(event)">&times;</span>
+    <img class="lightbox-img" id="lightbox-img" src="" alt="Zoomed Chart">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
+
+  <script>
+    // Tab switching logic
+    function switchTab(evt, tabId) {
+      const tabPanes = document.getElementsByClassName("tab-pane");
+      for (let i = 0; i < tabPanes.length; i++) {
+        tabPanes[i].classList.remove("active");
+      }
+      const tabBtns = document.getElementsByClassName("tab-btn");
+      for (let i = 0; i < tabBtns.length; i++) {
+        tabBtns[i].classList.remove("active");
+      }
+      document.getElementById(tabId).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
+    
+    // Lightbox modal logic
+    function openLightbox(src, caption) {
+      const lightbox = document.getElementById("lightbox");
+      const img = document.getElementById("lightbox-img");
+      const cap = document.getElementById("lightbox-caption");
+      img.src = src;
+      cap.innerText = caption;
+      lightbox.classList.add("open");
+    }
+    
+    function closeLightbox(event) {
+      if (event.target.id === "lightbox-img") return;
+      const lightbox = document.getElementById("lightbox");
+      lightbox.classList.remove("open");
+    }
+    
+    // Dark mode local storage toggle
+    const theme = localStorage.getItem("theme") || 
+      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+    
+    document.addEventListener("DOMContentLoaded", () => {
+      const toggle = document.getElementById("theme-toggle");
+      if (toggle) {
+        toggle.checked = theme === "dark";
+        toggle.addEventListener("change", () => {
+          const newTheme = toggle.checked ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", newTheme);
+          localStorage.setItem("theme", newTheme);
+        });
+      }
+    });
+  </script>
+</body>
+</html>

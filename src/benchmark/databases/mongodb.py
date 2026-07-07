@@ -112,8 +112,7 @@ class MongoDBClient(BaseDatabaseClient):
 
         import time
 
-        start = time.perf_counter()
-
+        # 1. Format/Serialize outside of the timed block
         documents = [
             {
                 "timestamp": record.timestamp,
@@ -131,8 +130,9 @@ class MongoDBClient(BaseDatabaseClient):
             for record in batch
         ]
 
+        # 2. Time only the database insert operation
+        start = time.perf_counter()
         await collection.insert_many(documents, ordered=False)
-
         latency = time.perf_counter() - start
 
         return {
@@ -148,6 +148,9 @@ class MongoDBClient(BaseDatabaseClient):
     ) -> dict[str, Any]:
         """Execute benchmark queries."""
 
+        if query_name == "compress":
+            return {}
+
         collection = self.collection
         if collection is None:
             raise RuntimeError("MongoDB collection not initialized.")
@@ -162,15 +165,98 @@ class MongoDBClient(BaseDatabaseClient):
         elif query_name == "time_range_query":
             cursor = self.collection.find(
                 {
+                    "vehicle_id": params["vehicle_id"],
                     "timestamp": {
                         "$gte": params["start_time"],
                         "$lte": params["end_time"],
-                    }
+                    },
                 }
             )
-
             rows = await cursor.to_list(length=None)
             row_count = len(rows)
+
+        elif query_name == "aggregation_query":
+            interval = params.get("aggregation_interval_seconds", 60.0)
+            pipeline = [
+                {
+                    "$match": {
+                        "vehicle_id": params["vehicle_id"],
+                        "timestamp": {
+                            "$gte": params["start_time"],
+                            "$lte": params["end_time"],
+                        },
+                    }
+                },
+                {
+                    "$project": {
+                        "bucket": {
+                            "$toDate": {
+                                "$subtract": [
+                                    {"$toLong": "$timestamp"},
+                                    {"$mod": [{"$toLong": "$timestamp"}, int(interval * 1000)]},
+                                ]
+                            }
+                        },
+                        "battery_percentage": 1,
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$bucket",
+                        "avg_value": {"$avg": "$battery_percentage"},
+                    }
+                },
+            ]
+            cursor = self.collection.aggregate(pipeline)
+            rows = await cursor.to_list(length=None)
+            row_count = len(rows)
+            latency = time.perf_counter() - start
+            return {
+                "latency_seconds": latency,
+                "groups_returned": row_count,
+            }
+
+        elif query_name == "historical_replay_query":
+            cursor = self.collection.find(
+                {"mission_id": params["mission_id"]}
+            ).sort("timestamp", 1)
+            rows = await cursor.to_list(length=None)
+            row_count = len(rows)
+
+        elif query_name == "join_query":
+            cursor = self.collection.find(
+                {
+                    "vehicle_id": params["vehicle_id"],
+                    "timestamp": {
+                        "$gte": params["start_time"],
+                        "$lte": params["end_time"],
+                    },
+                }
+            )
+            rows = await cursor.to_list(length=None)
+            row_count = len(rows)
+
+            start_merge = time.perf_counter()
+            vehicles_dict = {
+                f"drone_{i:04d}": {"model": f"Model-{i%5}", "manufacturer": f"Manufacturer-{i%3}"}
+                for i in range(200)
+            }
+            joined_rows = []
+            for r in rows:
+                v_meta = vehicles_dict.get(
+                    r.get("vehicle_id", ""), {"model": "Unknown", "manufacturer": "Unknown"}
+                )
+                joined_row = {**r, **v_meta}
+                joined_rows.append(joined_row)
+            merge_duration_ms = (time.perf_counter() - start_merge) * 1000.0
+
+            latency = time.perf_counter() - start
+            return {
+                "latency_seconds": latency,
+                "row_count": row_count,
+                "join_strategy": "app_merge",
+                "merge_duration_ms": merge_duration_ms,
+            }
 
         else:
             raise ValueError(f"Unsupported query: {query_name}")
@@ -182,7 +268,7 @@ class MongoDBClient(BaseDatabaseClient):
             "row_count": row_count,
         }
 
-    async def get_storage_size_bytes(self) -> int:
+    async def get_storage_size_bytes(self) -> int | None:
         """Return storage size."""
 
         if self.database is None:

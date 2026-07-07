@@ -28,6 +28,8 @@ dependencies = [
     "pymongo>=4.17.0",
     "aioboto3>=15.5.0",
     "boto3>=1.40.61",
+    "matplotlib>=3.9.0",
+    "cryptography>=42.0.0",
 ]
 
 [dependency-groups]
@@ -60,7 +62,7 @@ select = [
     "PTH", # flake8-use-pathlib
     "RUF", # Ruff-specific rules
 ]
-ignore = ["ARG002"]
+ignore = ["ARG002", "E501"]
 
 
 [tool.mypy]
@@ -91,6 +93,14 @@ module = [
     "aioboto3",
     "boto3",
     "boto3.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "matplotlib",
+    "matplotlib.*",
+    "numpy",
 ]
 ignore_missing_imports = true
 

@@ -140,7 +140,8 @@ class ScoringEngine:
                 # Locate primary metric value
                 for m in res.metrics:
                     if m.metric_type == metric_type:
-                        raw_values[res.database_name] = m.value
+                        if m.value is not None:
+                            raw_values[res.database_name] = m.value
                         break
 
             # Find range across successful databases

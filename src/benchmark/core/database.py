@@ -72,7 +72,7 @@ class BaseDatabaseClient(ABC):
         pass
 
     @abstractmethod
-    async def get_storage_size_bytes(self) -> int:
+    async def get_storage_size_bytes(self) -> int | None:
         """Retrieves total disk storage size consumed by benchmark tables/buckets in bytes.
 
         Used for compression evaluation.

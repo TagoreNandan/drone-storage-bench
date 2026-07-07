@@ -83,6 +83,11 @@ workloads:
         - "battery_drain_rate_by_drone_model"
         - "join_control_plane_metadata" # Query utilizing postgres control data
 
+  - name: "storage_compression_efficiency"
+    type: "compression"
+    enabled: true
+    params: {}
+
         
 
 # Configurable scoring weights for final rankings

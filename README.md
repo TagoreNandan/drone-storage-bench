@@ -263,30 +263,55 @@ uv sync
 
 # Running the Benchmark
 
-Start the database services
+You can run the benchmark in two ways: using a completely containerized zero-setup flow, or by running the runner locally on your host machine while database services run in Docker.
+
+### Option A: Zero-Setup Containerized Flow (Recommended)
+
+If you only have Docker Desktop installed, you can build and run the entire suite automatically in containers. This flow automatically waits for all database services to become healthy before executing the benchmark, saving HTML/Markdown reports and charts into the host's `results/` folder:
+
+```bash
+# Build and execute the full suite containerized
+docker compose up --build
+```
+
+### Option B: Local Developer CLI Flow
+
+Spin up the target database backends in the background:
 
 ```bash
 docker compose -f docker-compose.benchmark.yml up -d
 ```
 
-Execute the benchmark suite
+Execute the benchmark suite from your host CLI using `uv`:
 
 ```bash
+# Run all enabled target database benchmarks
 uv run python -m benchmark.runners.cli run
 ```
 
 ---
 
+# Visualization & HTML Reports
+
+After each benchmark run, the framework automatically generates and saves the following artifacts into the `results/` folder:
+- **Comparative Charts (`results/charts/`)**: Generates 6 distinct matplotlib visual charts (overall rating, multi-dimensional radar comparison, throughput, latency percentiles, database compression ratios, and disk storage footprint comparison).
+- **HTML Summary Report (`results/reports/`)**: A responsive premium web report equipped with metadata dashboards, dark mode toggles, zoomable overlays for each chart, and detailed tabbed workloads.
+- **Markdown Report (`results/reports/`)**: A clean GitHub-flavored summary report embedded with relative visualization references.
+
+---
+
 # Running Tests
+
+Verify project correctness locally:
 
 ```bash
 uv run pytest
 ```
 
-Current status
+Current status:
 
 ```
-55 tests passed
+58 tests passed
 ```
 
 ---

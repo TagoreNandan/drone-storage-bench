@@ -58,7 +58,7 @@ class MockTestDatabaseClient(BaseDatabaseClient):
             return {"row_count": self.mock_row_count}
         return {}
 
-    async def get_storage_size_bytes(self) -> int:
+    async def get_storage_size_bytes(self) -> int | None:
         if self.fail_on_disk_size:
             raise RuntimeError("Disk size retrieval error")
         return self.mock_storage_size
@@ -209,9 +209,9 @@ def test_compression_zero_byte_edge_cases(app_settings: AppSettings) -> None:
 
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
     assert metrics_map["logical_dataset_size_bytes"] == 0.0
-    assert metrics_map["physical_storage_size_bytes"] == 0.0
-    assert metrics_map["compression_ratio"] == 1.0
-    assert metrics_map["compression_percentage"] == 0.0
+    assert metrics_map["physical_storage_size_bytes"] is None
+    assert metrics_map["compression_ratio"] is None
+    assert metrics_map["compression_percentage"] is None
 
 
 def test_compression_failure_handling(app_settings: AppSettings) -> None:

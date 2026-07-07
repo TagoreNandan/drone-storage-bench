@@ -25,7 +25,13 @@ def cli() -> None:
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to the declarative benchmark.yaml configuration file.",
 )
-def run(config: Path) -> None:
+@click.option(
+    "--duration",
+    "-d",
+    type=int,
+    help="Override default duration in seconds.",
+)
+def run(config: Path, duration: int | None) -> None:
     """Runs the benchmark suite using the provided configuration file."""
     # Initialize global settings from environment variables
     settings = AppSettings()
@@ -35,6 +41,9 @@ def run(config: Path) -> None:
 
     # Load and validate the YAML file
     yaml_config = BenchmarkYamlConfig.load_from_yaml(config)
+
+    if duration is not None:
+        yaml_config.global_config.duration_seconds = duration
 
     # Run the orchestrator asynchronously
     asyncio.run(_async_run(settings, yaml_config))

@@ -85,6 +85,7 @@ def test_orchestrator_execution_flow(
     }
     monkeypatch.setattr("benchmark.runners.orchestrator.DB_CLIENT_REGISTRY", mock_registry)
 
+    yaml_config.global_config.duration_seconds = 1
     orchestrator = BenchmarkOrchestrator(settings, yaml_config)
     summary = asyncio.run(orchestrator.execute_suite())
 
@@ -140,6 +141,7 @@ def test_orchestrator_failure_containment(
     mock_registry = {"postgres": MockCrashingWorkloadClient}
     monkeypatch.setattr("benchmark.runners.orchestrator.DB_CLIENT_REGISTRY", mock_registry)
 
+    yaml_config.global_config.duration_seconds = 1
     orchestrator = BenchmarkOrchestrator(settings, yaml_config)
     summary = asyncio.run(orchestrator.execute_suite())
 

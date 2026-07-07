@@ -28,7 +28,6 @@ from benchmark.workloads.query import (
     AggregationQueryWorkload,
     HistoricalReplayWorkload,
     JoinEvaluationWorkload,
-    QueryWorkload,
     TimeRangeQueryWorkload,
 )
 
@@ -83,13 +82,12 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                 ScenarioType.WRITE_THROUGHPUT,
                 ScenarioType.BURST_WRITE_LATENCY,
                 ScenarioType.HISTORICAL_REPLAY,
-                ScenarioType.COMPRESSION_EVALUATION,
-            )
+            ) or wl.type == "mixed"
             is_read_heavy = s_type in (
                 ScenarioType.TIME_RANGE_QUERIES,
                 ScenarioType.AGGREGATION_QUERIES,
                 ScenarioType.JOIN_EVALUATION,
-            )
+            ) or wl.type == "mixed"
 
             if is_write_heavy:
                 workload_profile = WorkloadProfile(
@@ -123,9 +121,9 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
             # Deduce metrics to record
             metrics = []
             if workload_profile:
-                metrics.extend([MetricType.WRITE_THROUGHPUT, MetricType.WRITE_LATENCY_P95])
+                metrics.extend([MetricType.WRITE_THROUGHPUT, MetricType.WRITE_LATENCY_P95, MetricType.AVERAGE_BATCH_LATENCY_MS])
             if query_profile:
-                metrics.extend([MetricType.READ_THROUGHPUT, MetricType.READ_LATENCY_P95])
+                metrics.extend([MetricType.READ_THROUGHPUT, MetricType.READ_LATENCY_P95, MetricType.AVERAGE_LATENCY_MS])
             if s_type == ScenarioType.JOIN_EVALUATION:
                 metrics.append(MetricType.JOIN_LATENCY_MS)
             if s_type == ScenarioType.COMPRESSION_EVALUATION:
@@ -220,6 +218,14 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                     start_time = datetime.now(UTC)
 
                     try:
+                        # Clean up previous data if this scenario writes data to isolate runs
+                        if scenario.concurrent_writers > 0:
+                            logger.info("Cleaning up previous data for write scenario", target=target)
+                            try:
+                                await client.cleanup_data()
+                            except Exception as e:
+                                logger.error("Failed to clean data before write scenario", target=target, error=str(e))
+
                         # Initialize schema
                         await client.setup_schema()
 
@@ -232,25 +238,20 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
 
                         # Deduce and run workload stub
                         workload: BaseWorkload
-                        is_write = scenario.concurrent_writers > 0
-                        if is_write:
-                            if scenario.scenario_type == ScenarioType.BURST_WRITE_LATENCY:
-                                workload = BurstWriteLatencyWorkload(scenario)
-                            else:
-                                workload = IngestionWorkload(scenario)
+                        if scenario.scenario_type == ScenarioType.BURST_WRITE_LATENCY:
+                            workload = BurstWriteLatencyWorkload(scenario)
+                        elif scenario.scenario_type == ScenarioType.WRITE_THROUGHPUT:
+                            workload = IngestionWorkload(scenario)
+                        elif scenario.scenario_type == ScenarioType.TIME_RANGE_QUERIES:
+                            workload = TimeRangeQueryWorkload(scenario)
+                        elif scenario.scenario_type == ScenarioType.AGGREGATION_QUERIES:
+                            workload = AggregationQueryWorkload(scenario)
+                        elif scenario.scenario_type == ScenarioType.HISTORICAL_REPLAY:
+                            workload = HistoricalReplayWorkload(scenario)
+                        elif scenario.scenario_type == ScenarioType.COMPRESSION_EVALUATION:
+                            workload = CompressionEvaluationWorkload(scenario)
                         else:
-                            if scenario.scenario_type == ScenarioType.TIME_RANGE_QUERIES:
-                                workload = TimeRangeQueryWorkload(scenario)
-                            elif scenario.scenario_type == ScenarioType.AGGREGATION_QUERIES:
-                                workload = AggregationQueryWorkload(scenario)
-                            elif scenario.scenario_type == ScenarioType.HISTORICAL_REPLAY:
-                                workload = HistoricalReplayWorkload(scenario)
-                            elif scenario.scenario_type == ScenarioType.COMPRESSION_EVALUATION:
-                                workload = CompressionEvaluationWorkload(scenario)
-                            elif scenario.scenario_type == ScenarioType.JOIN_EVALUATION:
-                                workload = JoinEvaluationWorkload(scenario)
-                            else:
-                                workload = QueryWorkload(scenario)
+                            workload = JoinEvaluationWorkload(scenario)
 
                         # Delegate execution to workload runner
                         logger.info("Invoking workload execution")
@@ -278,11 +279,7 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                             )
                         )
                     finally:
-                        # In-between runs data cleanup to isolate runs
-                        try:
-                            await client.cleanup_data()
-                        except Exception as e:
-                            logger.error("Failed to run data cleanup", target=target, error=str(e))
+                        pass
 
                     # Cooldown interval
                     cooldown = self.run_config.global_config.cooldown_seconds
@@ -290,6 +287,14 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
                     await asyncio.sleep(min(cooldown, 0.1))  # Cap sleep for speed
 
         finally:
+            # Final data cleanup to ensure no garbage is left in database volumes
+            for target, client in healthy_clients.items():
+                try:
+                    logger.info("Executing final data cleanup", target=target)
+                    await client.cleanup_data()
+                except Exception as e:
+                    logger.error("Failed to run final cleanup", target=target, error=str(e))
+
             # 4. Gracefully close connections
             for target, client in healthy_clients.items():
                 try:
@@ -324,11 +329,16 @@ class BenchmarkOrchestrator(BaseWorkloadRunner):
         md_path = report_gen.generate_markdown_summary(
             self.suite_results, md_filename, score_report=score_report
         )
+        html_filename = f"{suite.name}_{timestamp_str}.html"
+        html_path = report_gen.generate_html_summary(
+            self.suite_results, html_filename, score_report=score_report
+        )
 
         logger.info(
             "Structured reports written",
             json_report=str(json_path),
             markdown_report=str(md_path),
+            html_report=str(html_path),
         )
 
         return {
