@@ -58,6 +58,9 @@ results/processed/*
 !results/processed/.gitkeep
 results/reports/*
 !results/reports/.gitkeep
+!results/reports/*.html
+!results/reports/*.md
+!results/reports/.gitkeep
 results/charts/*
 !results/charts/.gitkeep
 

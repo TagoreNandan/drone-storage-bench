@@ -4,6 +4,27 @@
 
 ### Production-Grade Database Benchmarking Framework for High-Frequency Drone Telemetry Workloads
 
+# Quick Start
+
+## Prerequisites
+
+- Docker Desktop
+
+## Run
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Reports are generated under:
+
+```
+results/raw/
+results/reports/
+results/charts/
+```
+
 [![Python](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED.svg)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/Tests-55%20Passing-success.svg)]()
