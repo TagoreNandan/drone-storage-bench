@@ -102,7 +102,7 @@ class QuestDBClient(BaseDatabaseClient):
             count = await conn.fetchval("SELECT COUNT(*) FROM vehicles;")
             if count == 0:
                 vehicles_data = [
-                    (f"drone_{i:04d}", f"Model-{i%5}", f"Manufacturer-{i%3}")
+                    (f"drone_{i:04d}", f"Model-{i % 5}", f"Manufacturer-{i % 3}")
                     for i in range(200)
                 ]
                 await conn.executemany(
@@ -266,8 +266,14 @@ class QuestDBClient(BaseDatabaseClient):
             return 0
         try:
             async with self.pool.acquire() as conn:
-                size_t = await conn.fetchval("SELECT SUM(diskSize) FROM table_partitions('telemetry');") or 0
-                size_v = await conn.fetchval("SELECT SUM(diskSize) FROM table_partitions('vehicles');") or 0
+                size_t = (
+                    await conn.fetchval("SELECT SUM(diskSize) FROM table_partitions('telemetry');")
+                    or 0
+                )
+                size_v = (
+                    await conn.fetchval("SELECT SUM(diskSize) FROM table_partitions('vehicles');")
+                    or 0
+                )
                 return int(size_t) + int(size_v)
         except Exception:
             return 0

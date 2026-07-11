@@ -280,7 +280,10 @@ class DynamoDBClient(BaseDatabaseClient):
 
             start_merge = time.perf_counter()
             vehicles_dict = {
-                f"drone_{i:04d}": {"model": f"Model-{i%5}", "manufacturer": f"Manufacturer-{i%3}"}
+                f"drone_{i:04d}": {
+                    "model": f"Model-{i % 5}",
+                    "manufacturer": f"Manufacturer-{i % 3}",
+                }
                 for i in range(200)
             }
             joined_items = []

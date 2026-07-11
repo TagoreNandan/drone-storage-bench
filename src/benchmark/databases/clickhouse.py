@@ -24,6 +24,7 @@ class ClickHouseClient(BaseDatabaseClient):
         self.connection_config = settings.clickhouse
         self.client: Client | None = None
         import asyncio
+
         self.lock = asyncio.Lock()
 
     async def connect(self) -> None:
@@ -112,8 +113,7 @@ class ClickHouseClient(BaseDatabaseClient):
         res = self.client.query("SELECT count() FROM vehicles")
         if res.result_rows[0][0] == 0:
             vehicles_data = [
-                (f"drone_{i:04d}", f"Model-{i%5}", f"Manufacturer-{i%3}")
-                for i in range(200)
+                (f"drone_{i:04d}", f"Model-{i % 5}", f"Manufacturer-{i % 3}") for i in range(200)
             ]
             self.client.insert(
                 "vehicles",

@@ -376,11 +376,19 @@ class BurstWriteLatencyWorkload(BaseWorkload):
                     q_start = time.perf_counter()
                     try:
                         q_name = "time_range_query"
-                        if pattern in ("altitude_anomaly_detection", "battery_drain_rate_by_drone_model"):
+                        if pattern in (
+                            "altitude_anomaly_detection",
+                            "battery_drain_rate_by_drone_model",
+                        ):
                             q_name = "aggregation_query"
                         elif pattern == "join_control_plane_metadata":
                             q_name = "join_query"
-                        elif pattern in ("time_range_query", "aggregation_query", "historical_replay_query", "join_query"):
+                        elif pattern in (
+                            "time_range_query",
+                            "aggregation_query",
+                            "historical_replay_query",
+                            "join_query",
+                        ):
                             q_name = pattern
 
                         await client.execute_query(q_name, query_params)
@@ -549,52 +557,56 @@ class BurstWriteLatencyWorkload(BaseWorkload):
             read_p99 = calculate_percentile(read_latencies_ms, 99.0)
             read_ops = successful_reads / total_duration if total_duration > 0 else 0.0
 
-            metrics.extend([
+            metrics.extend(
+                [
+                    BenchmarkMetric(
+                        metric_type=MetricType.READ_THROUGHPUT,
+                        value=read_ops,
+                        unit=MetricUnit.RECORDS_PER_SECOND,
+                    ),
+                    BenchmarkMetric(
+                        metric_type=MetricType.READ_LATENCY_MEAN,
+                        value=read_avg,
+                        unit=MetricUnit.MILLISECONDS,
+                    ),
+                    BenchmarkMetric(
+                        metric_type=MetricType.READ_LATENCY_P95,
+                        value=read_p95,
+                        unit=MetricUnit.MILLISECONDS,
+                    ),
+                    BenchmarkMetric(
+                        metric_type=MetricType.READ_LATENCY_P99,
+                        value=read_p99,
+                        unit=MetricUnit.MILLISECONDS,
+                    ),
+                ]
+            )
+
+        metrics.extend(
+            [
+                # Standard mappings for base reporting systems
                 BenchmarkMetric(
-                    metric_type=MetricType.READ_THROUGHPUT,
-                    value=read_ops,
+                    metric_type=MetricType.WRITE_THROUGHPUT,
+                    value=total_rows_written / total_duration if total_duration > 0 else 0.0,
                     unit=MetricUnit.RECORDS_PER_SECOND,
                 ),
                 BenchmarkMetric(
-                    metric_type=MetricType.READ_LATENCY_MEAN,
-                    value=read_avg,
+                    metric_type=MetricType.WRITE_LATENCY_MEAN,
+                    value=avg_latency,
                     unit=MetricUnit.MILLISECONDS,
                 ),
                 BenchmarkMetric(
-                    metric_type=MetricType.READ_LATENCY_P95,
-                    value=read_p95,
+                    metric_type=MetricType.WRITE_LATENCY_P95,
+                    value=p95,
                     unit=MetricUnit.MILLISECONDS,
                 ),
                 BenchmarkMetric(
-                    metric_type=MetricType.READ_LATENCY_P99,
-                    value=read_p99,
+                    metric_type=MetricType.WRITE_LATENCY_P99,
+                    value=p99,
                     unit=MetricUnit.MILLISECONDS,
                 ),
-            ])
-
-        metrics.extend([
-            # Standard mappings for base reporting systems
-            BenchmarkMetric(
-                metric_type=MetricType.WRITE_THROUGHPUT,
-                value=total_rows_written / total_duration if total_duration > 0 else 0.0,
-                unit=MetricUnit.RECORDS_PER_SECOND,
-            ),
-            BenchmarkMetric(
-                metric_type=MetricType.WRITE_LATENCY_MEAN,
-                value=avg_latency,
-                unit=MetricUnit.MILLISECONDS,
-            ),
-            BenchmarkMetric(
-                metric_type=MetricType.WRITE_LATENCY_P95,
-                value=p95,
-                unit=MetricUnit.MILLISECONDS,
-            ),
-            BenchmarkMetric(
-                metric_type=MetricType.WRITE_LATENCY_P99,
-                value=p99,
-                unit=MetricUnit.MILLISECONDS,
-            ),
-        ])
+            ]
+        )
 
         success = failed_batches <= failure_threshold
         error_msg = str(last_exception) if last_exception else None

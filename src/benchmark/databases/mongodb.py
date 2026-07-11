@@ -217,9 +217,7 @@ class MongoDBClient(BaseDatabaseClient):
             }
 
         elif query_name == "historical_replay_query":
-            cursor = self.collection.find(
-                {"mission_id": params["mission_id"]}
-            ).sort("timestamp", 1)
+            cursor = self.collection.find({"mission_id": params["mission_id"]}).sort("timestamp", 1)
             rows = await cursor.to_list(length=None)
             row_count = len(rows)
 
@@ -238,7 +236,10 @@ class MongoDBClient(BaseDatabaseClient):
 
             start_merge = time.perf_counter()
             vehicles_dict = {
-                f"drone_{i:04d}": {"model": f"Model-{i%5}", "manufacturer": f"Manufacturer-{i%3}"}
+                f"drone_{i:04d}": {
+                    "model": f"Model-{i % 5}",
+                    "manufacturer": f"Manufacturer-{i % 3}",
+                }
                 for i in range(200)
             }
             joined_rows = []

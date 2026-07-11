@@ -311,7 +311,11 @@ class ReportGenerator:
                 if res.success:
                     for m in res.metrics:
                         val_str = f"{m.value:,.2f}" if m.value is not None else "N/A"
-                        unit_str = f' <span class="metric-unit">{m.unit.value}</span>' if m.value is not None else ""
+                        unit_str = (
+                            f' <span class="metric-unit">{m.unit.value}</span>'
+                            if m.value is not None
+                            else ""
+                        )
                         metrics_list.append(
                             f'<div class="metric-card-pill">'
                             f'  <span class="metric-card-label">{m.metric_type.value}</span>'
