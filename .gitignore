@@ -63,6 +63,7 @@ results/reports/*
 !results/reports/.gitkeep
 results/charts/*
 !results/charts/.gitkeep
+!results/charts/*.png
 
 # Temporary results and logs
 results/past_results/
