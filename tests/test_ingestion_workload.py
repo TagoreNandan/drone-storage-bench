@@ -172,13 +172,16 @@ def test_workload_metrics_calculations(app_settings: AppSettings) -> None:
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
 
     assert "total_rows_written" in metrics_map
+    assert metrics_map["total_rows_written"] is not None
     assert metrics_map["total_rows_written"] > 0
     assert "successful_batches" in metrics_map
+    assert metrics_map["successful_batches"] is not None
     assert metrics_map["successful_batches"] > 0
     assert "failed_batches" in metrics_map
     assert metrics_map["failed_batches"] == 0.0
     assert "p50_batch_latency_ms" in metrics_map
     assert "rows_per_second" in metrics_map
+    assert metrics_map["rows_per_second"] is not None
     assert metrics_map["rows_per_second"] > 0.0
 
 
@@ -220,4 +223,5 @@ def test_workload_failure_threshold(app_settings: AppSettings) -> None:
     assert result.error_message == "DB write error"
 
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
+    assert metrics_map["failed_batches"] is not None
     assert metrics_map["failed_batches"] > 2

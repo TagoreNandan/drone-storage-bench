@@ -101,6 +101,7 @@ def test_burst_scheduling_and_multiplier(app_settings: AppSettings) -> None:
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
 
     assert "total_rows_written" in metrics_map
+    assert metrics_map["total_rows_written"] is not None
     assert metrics_map["total_rows_written"] > 0
     assert "average_batch_latency_ms" in metrics_map
     assert "p95_batch_latency_ms" in metrics_map
@@ -110,7 +111,9 @@ def test_burst_scheduling_and_multiplier(app_settings: AppSettings) -> None:
 
     # Throughput during burst should be significantly higher due to multiplier
     # (Since base rate limit is 100 recs/sec and multiplier is 4.0, burst rate is 400 recs/sec)
+    assert metrics_map["throughput_during_burst"] is not None
     assert metrics_map["throughput_during_burst"] >= 0.0
+    assert metrics_map["throughput_outside_burst"] is not None
     assert metrics_map["throughput_outside_burst"] >= 0.0
 
 
@@ -154,6 +157,7 @@ def test_burst_workload_failure_handling(app_settings: AppSettings) -> None:
     assert result.error_message == "DB write error"
 
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
+    assert metrics_map["failed_batches"] is not None
     assert metrics_map["failed_batches"] >= 2.0
 
 

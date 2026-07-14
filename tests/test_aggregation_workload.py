@@ -188,6 +188,7 @@ def test_aggregation_failure_threshold(app_settings: AppSettings) -> None:
     assert result.error_message == "DB aggregation error"
 
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
+    assert metrics_map["failed_queries"] is not None
     assert metrics_map["failed_queries"] >= 2.0
 
 

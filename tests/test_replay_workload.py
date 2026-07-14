@@ -148,6 +148,7 @@ def test_replay_throughput_calculations(app_settings: AppSettings) -> None:
     assert metrics_map["total_replays"] == 3.0
     assert metrics_map["successful_replays"] == 3.0
     assert metrics_map["rows_returned"] == 3000.0
+    assert metrics_map["replay_throughput_rows_per_second"] is not None
     assert metrics_map["replay_throughput_rows_per_second"] > 0.0
     assert "average_latency_ms" in metrics_map
     assert "p99_latency_ms" in metrics_map
@@ -234,4 +235,5 @@ def test_replay_failure_handling(app_settings: AppSettings) -> None:
     assert result.error_message == "DB replay query error"
 
     metrics_map = {m.metric_type.value: m.value for m in result.metrics}
+    assert metrics_map["failed_replays"] is not None
     assert metrics_map["failed_replays"] >= 2.0
